@@ -22,6 +22,7 @@ typedef enum VirguleImportEventKind {
     VIRGULE_IMPORT_PROGRESS = 2,
     VIRGULE_IMPORT_COMPLETED = 3,
     VIRGULE_IMPORT_ERROR = 4,
+    VIRGULE_IMPORT_HEADERS = 5,
 } VirguleImportEventKind;
 
 /// Borrowed UTF-8 values. Every pointer is valid only while the callback runs.

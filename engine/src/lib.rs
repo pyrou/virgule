@@ -23,6 +23,9 @@ pub enum ImportEvent {
     Started {
         total_bytes: u64,
     },
+    Headers {
+        values: Vec<String>,
+    },
     Preview {
         row: usize,
         values: Vec<String>,
@@ -1075,6 +1078,9 @@ pub fn import_source_file(
     if headers.is_empty() {
         return Err(ImportError::NoColumns);
     }
+    report(ImportEvent::Headers {
+        values: headers.clone(),
+    });
     let mut data = Vec::new();
     if !has_header {
         data.push(first);
@@ -1152,6 +1158,7 @@ pub type VirgulePageCallback = unsafe extern "C" fn(*const VirgulePageRow, *mut 
 fn emit_ffi_event(callback: VirguleImportCallback, context: *mut c_void, event: ImportEvent) {
     let (kind, row, imported_rows, total_bytes, values, message) = match event {
         ImportEvent::Started { total_bytes } => (0, 0, 0, total_bytes, Vec::new(), String::new()),
+        ImportEvent::Headers { values } => (5, 0, 0, 0, values, String::new()),
         ImportEvent::Preview { row, values } => (1, row, 0, 0, values, String::new()),
         ImportEvent::Progress {
             imported_rows,
@@ -1390,6 +1397,10 @@ mod tests {
             .iter()
             .position(|event| matches!(event, ImportEvent::Preview { .. }))
             .expect("reports preview");
+        let headers_index = events
+            .iter()
+            .position(|event| matches!(event, ImportEvent::Headers { .. }))
+            .expect("reports source headers");
         let completion_index = events
             .iter()
             .position(|event| {
@@ -1402,7 +1413,12 @@ mod tests {
                 )
             })
             .expect("reports completion");
+        assert!(headers_index < preview_index);
         assert!(preview_index < completion_index);
+        assert!(events.iter().any(|event| matches!(
+            event,
+            ImportEvent::Headers { values } if values == &vec!["name".to_owned(), "age".to_owned()]
+        )));
         assert!(events.iter().any(|event| matches!(event, ImportEvent::Preview { values, .. } if values == &vec!["Ada".to_owned(), "42".to_owned()])));
         assert!(events.iter().any(|event| matches!(
             event,

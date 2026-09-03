@@ -17,6 +17,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private var cachedRows: [Int: CachedRow] = [:]
     private var loadingPageOffsets = Set<Int>()
     private var columnCount = 0
+    private var columnTitles: [String] = []
     private let pageSize = 256
     private let maximumCachedPages = 8
 
@@ -118,6 +119,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         cachedRows = [:]
         loadingPageOffsets = []
         columnCount = 0
+        columnTitles = []
         setGridVisible(false)
         gridView.reloadData()
         titleLabel.stringValue = "Importing \(url.lastPathComponent)…"
@@ -153,6 +155,9 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
             switch event.kind {
             case VIRGULE_IMPORT_STARTED.rawValue:
                 self.detailLabel.stringValue = "Preparing import (\(event.totalBytes) bytes)…"
+            case VIRGULE_IMPORT_HEADERS.rawValue:
+                self.columnTitles = event.values
+                self.gridView.reloadData()
             case VIRGULE_IMPORT_PREVIEW.rawValue:
                 self.detailLabel.stringValue = "Reading rows…"
                 if self.previewRows.count < 5 {
@@ -184,7 +189,12 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     }
 
     func numberOfColumns(in grid: VirtualizedGridView) -> Int {
-        max(columnCount, previewRows.map { $0.count }.max() ?? 0)
+        max(columnTitles.count, columnCount, previewRows.map { $0.count }.max() ?? 0)
+    }
+
+    func grid(_ grid: VirtualizedGridView, titleForColumn column: Int) -> String {
+        guard columnTitles.indices.contains(column) else { return "Column \(column + 1)" }
+        return columnTitles[column]
     }
 
     func grid(_ grid: VirtualizedGridView, valueForRow row: Int, column: Int) -> String {

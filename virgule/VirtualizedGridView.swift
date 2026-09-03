@@ -439,18 +439,21 @@ private final class VirtualizedGridRowNumberDocumentView: NSView {
     }
 }
 
-private final class VirtualizedGridRowNumberHeaderView: NSTextField {
+private final class VirtualizedGridRowNumberHeaderView: NSView {
+    private let label = NSTextField(labelWithString: "#")
+
     init() {
         super.init(frame: .zero)
-        stringValue = "#"
-        isEditable = false
-        isSelectable = false
-        isBordered = false
-        alignment = .right
-        drawsBackground = true
-        backgroundColor = .clear
-        textColor = .secondaryLabelColor
-        font = .systemFont(ofSize: 12, weight: .semibold)
+        label.isSelectable = false
+        label.alignment = .right
+        label.textColor = .secondaryLabelColor
+        label.font = .systemFont(ofSize: 12, weight: .semibold)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        NSLayoutConstraint.activate([
+            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
         wantsLayer = true
         layer?.borderWidth = 0.5
         layer?.borderColor = NSColor.separatorColor.cgColor
@@ -461,16 +464,25 @@ private final class VirtualizedGridRowNumberHeaderView: NSTextField {
     }
 }
 
-private final class VirtualizedGridRowNumberView: NSTextField {
+private final class VirtualizedGridRowNumberView: NSView {
+    private let label = NSTextField(labelWithString: "")
+    var stringValue: String {
+        get { label.stringValue }
+        set { label.stringValue = newValue }
+    }
+
     init() {
         super.init(frame: .zero)
-        isEditable = false
-        isSelectable = false
-        isBordered = false
-        alignment = .right
-        textColor = .secondaryLabelColor
-        drawsBackground = false
-        font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+        label.isSelectable = false
+        label.alignment = .right
+        label.textColor = .secondaryLabelColor
+        label.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        NSLayoutConstraint.activate([
+            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
         wantsLayer = true
         layer?.borderWidth = 0.5
         layer?.borderColor = NSColor.separatorColor.cgColor
