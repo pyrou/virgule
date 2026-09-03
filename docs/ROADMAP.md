@@ -49,7 +49,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Paginate results without materializing them in the UI.
 - [x] Validate read-only `SELECT`, `WITH`, and `EXPLAIN` queries.
 - [x] Reject `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ATTACH`, and other writes.
-- [ ] Add SQL-validation and pagination tests.
+- [x] Add SQL-validation and pagination tests.
 
 ## 4. AppKit application and file opening
 
