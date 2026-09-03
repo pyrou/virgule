@@ -78,6 +78,71 @@ impl CsvCache {
         transaction.commit()?;
         Ok(imported_rows)
     }
+
+    /// Recreates the `csv` view table and its column metadata for one import.
+    ///
+    /// Source header labels are retained in `csv_columns`; SQL column identifiers
+    /// are made non-empty and unique so every CSV can be queried safely.
+    pub fn create_csv_table(
+        &mut self,
+        columns: impl IntoIterator<Item = CsvColumn>,
+    ) -> rusqlite::Result<Vec<CsvColumnMetadata>> {
+        let metadata = column_metadata(columns);
+        let column_definitions = metadata
+            .iter()
+            .map(|column| {
+                format!(
+                    "{} {}",
+                    quote_identifier(&column.sql_name),
+                    sqlite_type_for(column.column_type)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let transaction = self.connection.transaction()?;
+        transaction.execute_batch(
+            "DROP TABLE IF EXISTS csv;\
+             DROP TABLE IF EXISTS csv_columns;\
+             CREATE TABLE csv_columns (\
+                 ordinal INTEGER PRIMARY KEY,\
+                 source_name TEXT NOT NULL,\
+                 sql_name TEXT NOT NULL UNIQUE,\
+                 inferred_type TEXT NOT NULL\
+             );",
+        )?;
+        transaction.execute_batch(&format!("CREATE TABLE csv ({column_definitions})"))?;
+        let mut statement = transaction.prepare(
+            "INSERT INTO csv_columns (ordinal, source_name, sql_name, inferred_type) \
+             VALUES (?1, ?2, ?3, ?4)",
+        )?;
+        for column in &metadata {
+            statement.execute((
+                column.ordinal,
+                &column.source_name,
+                &column.sql_name,
+                column_type_name(column.column_type),
+            ))?;
+        }
+        drop(statement);
+        transaction.commit()?;
+        Ok(metadata)
+    }
+}
+
+/// A CSV column as detected from its header and values.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CsvColumn {
+    pub source_name: String,
+    pub column_type: ColumnType,
+}
+
+/// The mapping between a source CSV label and its queryable SQLite column.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CsvColumnMetadata {
+    pub ordinal: usize,
+    pub source_name: String,
+    pub sql_name: String,
+    pub column_type: ColumnType,
 }
 
 /// An error that prevents a CSV cache import from completing.
@@ -107,6 +172,70 @@ impl From<rusqlite::Error> for ImportError {
 
 fn quote_identifier(identifier: &str) -> String {
     format!("\"{}\"", identifier.replace('"', "\"\""))
+}
+
+fn column_metadata(columns: impl IntoIterator<Item = CsvColumn>) -> Vec<CsvColumnMetadata> {
+    let mut sql_names = Vec::<String>::new();
+    columns
+        .into_iter()
+        .enumerate()
+        .map(|(ordinal, column)| {
+            let sql_name = unique_sql_name(&column.source_name, ordinal, &sql_names);
+            sql_names.push(sql_name.clone());
+            CsvColumnMetadata {
+                ordinal,
+                source_name: column.source_name,
+                sql_name,
+                column_type: column.column_type,
+            }
+        })
+        .collect()
+}
+
+fn unique_sql_name(source_name: &str, ordinal: usize, existing_names: &[String]) -> String {
+    let base_name = if source_name.trim().is_empty() {
+        format!("column_{}", ordinal + 1)
+    } else {
+        source_name.to_owned()
+    };
+    if !existing_names
+        .iter()
+        .any(|name| name.eq_ignore_ascii_case(&base_name))
+    {
+        return base_name;
+    }
+
+    let mut suffix = 2;
+    loop {
+        let candidate = format!("{base_name}_{suffix}");
+        if !existing_names
+            .iter()
+            .any(|name| name.eq_ignore_ascii_case(&candidate))
+        {
+            return candidate;
+        }
+        suffix += 1;
+    }
+}
+
+fn sqlite_type_for(column_type: ColumnType) -> &'static str {
+    match column_type {
+        ColumnType::Boolean | ColumnType::Integer => "INTEGER",
+        ColumnType::Decimal => "REAL",
+        ColumnType::Null | ColumnType::Date | ColumnType::DateTime | ColumnType::Text => "TEXT",
+    }
+}
+
+fn column_type_name(column_type: ColumnType) -> &'static str {
+    match column_type {
+        ColumnType::Null => "null",
+        ColumnType::Boolean => "boolean",
+        ColumnType::Integer => "integer",
+        ColumnType::Decimal => "decimal",
+        ColumnType::Date => "date",
+        ColumnType::DateTime => "datetime",
+        ColumnType::Text => "text",
+    }
 }
 
 /// Returns a sibling cache path without changing the CSV file or its extension.
@@ -873,6 +1002,157 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM import_target", [], |row| row.get(0))
             .expect("counts rows after failed import");
         assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn creates_the_csv_table_and_retains_column_metadata() {
+        let connection = Connection::open_in_memory().expect("opens in-memory SQLite");
+        let mut cache = CsvCache {
+            connection,
+            path: PathBuf::from(":memory:"),
+        };
+
+        let columns = cache
+            .create_csv_table([
+                CsvColumn {
+                    source_name: "Name".to_owned(),
+                    column_type: ColumnType::Text,
+                },
+                CsvColumn {
+                    source_name: "Age".to_owned(),
+                    column_type: ColumnType::Integer,
+                },
+                CsvColumn {
+                    source_name: "Created at".to_owned(),
+                    column_type: ColumnType::DateTime,
+                },
+            ])
+            .expect("creates CSV schema");
+
+        assert_eq!(
+            columns,
+            vec![
+                CsvColumnMetadata {
+                    ordinal: 0,
+                    source_name: "Name".to_owned(),
+                    sql_name: "Name".to_owned(),
+                    column_type: ColumnType::Text,
+                },
+                CsvColumnMetadata {
+                    ordinal: 1,
+                    source_name: "Age".to_owned(),
+                    sql_name: "Age".to_owned(),
+                    column_type: ColumnType::Integer,
+                },
+                CsvColumnMetadata {
+                    ordinal: 2,
+                    source_name: "Created at".to_owned(),
+                    sql_name: "Created at".to_owned(),
+                    column_type: ColumnType::DateTime,
+                },
+            ]
+        );
+        let types = cache
+            .connection()
+            .prepare("PRAGMA table_info(csv)")
+            .expect("prepares schema query")
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(1)?, row.get::<_, String>(2)?))
+            })
+            .expect("queries schema")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("reads schema");
+        assert_eq!(
+            types,
+            vec![
+                ("Name".to_owned(), "TEXT".to_owned()),
+                ("Age".to_owned(), "INTEGER".to_owned()),
+                ("Created at".to_owned(), "TEXT".to_owned()),
+            ]
+        );
+        let names = cache
+            .connection()
+            .prepare(
+                "SELECT source_name, sql_name, inferred_type FROM csv_columns ORDER BY ordinal",
+            )
+            .expect("prepares metadata query")
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .expect("queries metadata")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("reads metadata");
+        assert_eq!(
+            names,
+            vec![
+                ("Name".to_owned(), "Name".to_owned(), "text".to_owned()),
+                ("Age".to_owned(), "Age".to_owned(), "integer".to_owned()),
+                (
+                    "Created at".to_owned(),
+                    "Created at".to_owned(),
+                    "datetime".to_owned(),
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn makes_empty_and_duplicate_headers_queryable_without_losing_the_source_labels() {
+        let connection = Connection::open_in_memory().expect("opens in-memory SQLite");
+        let mut cache = CsvCache {
+            connection,
+            path: PathBuf::from(":memory:"),
+        };
+
+        let columns = cache
+            .create_csv_table([
+                CsvColumn {
+                    source_name: "".to_owned(),
+                    column_type: ColumnType::Text,
+                },
+                CsvColumn {
+                    source_name: "name".to_owned(),
+                    column_type: ColumnType::Text,
+                },
+                CsvColumn {
+                    source_name: "name".to_owned(),
+                    column_type: ColumnType::Text,
+                },
+            ])
+            .expect("creates CSV schema");
+
+        assert_eq!(
+            columns
+                .iter()
+                .map(|column| column.sql_name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["column_1", "name", "name_2"]
+        );
+        cache
+            .import_records(
+                "csv",
+                3,
+                vec![Ok(vec![
+                    "Ada".to_owned(),
+                    "first".to_owned(),
+                    "second".to_owned(),
+                ])],
+            )
+            .expect("imports using generated names");
+        let row: (String, String, String) = cache
+            .connection()
+            .query_row("SELECT column_1, name, name_2 FROM csv", [], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .expect("queries imported row");
+        assert_eq!(
+            row,
+            ("Ada".to_owned(), "first".to_owned(), "second".to_owned())
+        );
     }
 
     #[test]
