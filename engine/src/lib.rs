@@ -214,6 +214,108 @@ fn decode_windows_1252(bytes: &[u8]) -> String {
         .collect()
 }
 
+/// A syntax error encountered while reading CSV records.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CsvParseError {
+    UnterminatedQuotedField,
+    UnexpectedCharacterAfterClosingQuote,
+}
+
+/// An iterator over CSV records that retains only the current record in memory.
+pub struct CsvRecords<'input> {
+    input: &'input str,
+    delimiter: char,
+    position: usize,
+}
+
+impl<'input> CsvRecords<'input> {
+    pub fn new(input: &'input str, delimiter: Delimiter) -> Self {
+        Self {
+            input,
+            delimiter: delimiter.as_char(),
+            position: 0,
+        }
+    }
+
+    fn next_record(&mut self) -> Option<Result<Vec<String>, CsvParseError>> {
+        if self.position == self.input.len() {
+            return None;
+        }
+
+        let mut fields = Vec::new();
+        let mut field = String::new();
+        let mut quoted = false;
+        let mut after_quote = false;
+        let record_start = self.position;
+        let mut iterator = self.input[record_start..].char_indices().peekable();
+
+        while let Some((offset, character)) = iterator.next() {
+            let next_position = record_start + offset + character.len_utf8();
+            if quoted {
+                if character == '"' {
+                    if iterator.peek().is_some_and(|(_, next)| *next == '"') {
+                        let (escaped_offset, escaped_quote) =
+                            iterator.next().expect("peeked quote");
+                        field.push(escaped_quote);
+                        self.position = record_start + escaped_offset + escaped_quote.len_utf8();
+                    } else {
+                        quoted = false;
+                        after_quote = true;
+                        self.position = next_position;
+                    }
+                } else {
+                    field.push(character);
+                    self.position = next_position;
+                }
+                continue;
+            }
+
+            if after_quote && character != self.delimiter && character != '\n' && character != '\r'
+            {
+                self.position = next_position;
+                return Some(Err(CsvParseError::UnexpectedCharacterAfterClosingQuote));
+            }
+            if character == '"' && field.is_empty() && !after_quote {
+                quoted = true;
+                self.position = next_position;
+            } else if character == self.delimiter {
+                fields.push(std::mem::take(&mut field));
+                after_quote = false;
+                self.position = next_position;
+            } else if character == '\n' || character == '\r' {
+                if character == '\r' && iterator.peek().is_some_and(|(_, next)| *next == '\n') {
+                    let (line_feed_offset, line_feed) = iterator.next().expect("peeked line feed");
+                    self.position = record_start + line_feed_offset + line_feed.len_utf8();
+                } else {
+                    self.position = next_position;
+                }
+                fields.push(field);
+                return Some(Ok(fields));
+            } else {
+                field.push(character);
+                self.position = next_position;
+            }
+        }
+
+        if quoted {
+            self.position = self.input.len();
+            Some(Err(CsvParseError::UnterminatedQuotedField))
+        } else {
+            self.position = self.input.len();
+            fields.push(field);
+            Some(Ok(fields))
+        }
+    }
+}
+
+impl Iterator for CsvRecords<'_> {
+    type Item = Result<Vec<String>, CsvParseError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_record()
+    }
+}
+
 impl DelimiterSelection {
     /// Resolves this selection against an input sample.
     pub fn resolve(self, input: &str) -> Option<Delimiter> {
@@ -451,6 +553,19 @@ mod tests {
         let first_row = vec!["Ada".to_owned(), "Paris".to_owned()];
         let second_row = vec!["Lin".to_owned(), "Tokyo".to_owned()];
         assert!(!HeaderSelection::Automatic.resolve(&first_row, Some(&second_row)));
+    }
+
+    #[test]
+    fn stream_parses_a_quoted_comma() {
+        let records = CsvRecords::new("name,note\nAda,\"Paris, France\"", Delimiter::Comma)
+            .collect::<Result<Vec<_>, _>>();
+        assert_eq!(
+            records,
+            Ok(vec![
+                vec!["name".to_owned(), "note".to_owned()],
+                vec!["Ada".to_owned(), "Paris, France".to_owned()],
+            ])
+        );
     }
 
     #[test]

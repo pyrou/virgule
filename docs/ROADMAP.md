@@ -33,7 +33,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Allow manual delimiter override.
 - [x] Read UTF-8, UTF-16, and Windows-1252; expose manual selection.
 - [x] Support files with and without headers.
-- [ ] Stream-parse quoted fields containing delimiters.
+- [x] Stream-parse quoted fields containing delimiters.
 - [ ] Stream-parse quoted fields containing line breaks.
 - [ ] Support escaped quotes.
 - [ ] Infer null, boolean, integer, decimal, date/datetime, and text.
