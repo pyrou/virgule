@@ -569,6 +569,22 @@ mod tests {
     }
 
     #[test]
+    fn stream_parses_a_quoted_line_break() {
+        let records = CsvRecords::new(
+            "name,note\nAda,\"first line\nsecond line\"",
+            Delimiter::Comma,
+        )
+        .collect::<Result<Vec<_>, _>>();
+        assert_eq!(
+            records,
+            Ok(vec![
+                vec!["name".to_owned(), "note".to_owned()],
+                vec!["Ada".to_owned(), "first line\nsecond line".to_owned()],
+            ])
+        );
+    }
+
+    #[test]
     fn engine_handle_can_be_created_and_destroyed() {
         let engine = virgule_engine_create();
         assert!(!engine.is_null());
