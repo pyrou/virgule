@@ -446,6 +446,54 @@ fn describes_and_pages_a_read_only_query() {
 }
 
 #[test]
+fn describes_and_pages_sql_calculated_columns() {
+    let connection = Connection::open_in_memory().expect("opens cache");
+    connection
+        .execute_batch(
+            "CREATE TABLE csv (name TEXT, unit_price INTEGER, quantity INTEGER); \
+             INSERT INTO csv VALUES ('Ada', 12, 3), ('Lin', 7, 5)",
+        )
+        .expect("creates CSV fixture");
+    let cache = CsvCache {
+        connection,
+        path: PathBuf::from(":memory:"),
+    };
+    let sql = "SELECT name, unit_price * quantity AS total, \
+               CASE WHEN quantity >= 5 THEN 'bulk' ELSE 'standard' END AS order_kind \
+               FROM csv ORDER BY name";
+
+    assert_eq!(
+        cache
+            .describe_query(sql)
+            .expect("describes calculated columns"),
+        QueryDescription {
+            column_names: vec![
+                "name".to_owned(),
+                "total".to_owned(),
+                "order_kind".to_owned()
+            ],
+            row_count: 2,
+        }
+    );
+    assert_eq!(
+        cache
+            .read_query_page(sql, 0, 2)
+            .expect("reads calculated column values")
+            .rows,
+        vec![
+            CsvPageRow {
+                source_row: 1,
+                values: vec!["Ada".to_owned(), "36".to_owned(), "standard".to_owned()],
+            },
+            CsvPageRow {
+                source_row: 2,
+                values: vec!["Lin".to_owned(), "35".to_owned(), "bulk".to_owned()],
+            },
+        ]
+    );
+}
+
+#[test]
 fn query_page_uses_the_returned_internal_row_id() {
     let connection = Connection::open_in_memory().expect("opens cache");
     connection
