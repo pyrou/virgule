@@ -46,15 +46,9 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         openButton.target = self
         openButton.action = #selector(openCSV(_:))
 
-        let readOnlyLabel = NSTextField(labelWithString: "Read-only — the source file is not modified.")
-        readOnlyLabel.font = .systemFont(ofSize: 12, weight: .medium)
-        readOnlyLabel.textColor = .secondaryLabelColor
-        readOnlyLabel.alignment = .center
-
         controls.addArrangedSubview(titleLabel)
         controls.addArrangedSubview(detailLabel)
         controls.addArrangedSubview(openButton)
-        controls.addArrangedSubview(readOnlyLabel)
         controls.orientation = .vertical
         controls.alignment = .centerX
         controls.spacing = 12
@@ -69,12 +63,10 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
             controls.centerYAnchor.constraint(equalTo: dropView.centerYAnchor),
         ]
         previewStateConstraints = [
-            controls.centerXAnchor.constraint(equalTo: dropView.centerXAnchor),
-            controls.topAnchor.constraint(equalTo: dropView.topAnchor, constant: 32),
-            gridView.topAnchor.constraint(equalTo: controls.bottomAnchor, constant: 12),
-            gridView.leadingAnchor.constraint(equalTo: dropView.leadingAnchor, constant: 40),
-            gridView.trailingAnchor.constraint(equalTo: dropView.trailingAnchor, constant: -40),
-            gridView.bottomAnchor.constraint(equalTo: dropView.bottomAnchor, constant: -32),
+            gridView.topAnchor.constraint(equalTo: dropView.topAnchor),
+            gridView.leadingAnchor.constraint(equalTo: dropView.leadingAnchor),
+            gridView.trailingAnchor.constraint(equalTo: dropView.trailingAnchor),
+            gridView.bottomAnchor.constraint(equalTo: dropView.bottomAnchor),
         ]
         NSLayoutConstraint.activate([
             detailLabel.widthAnchor.constraint(lessThanOrEqualTo: dropView.widthAnchor, constant: -80),
@@ -161,9 +153,6 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
             case VIRGULE_IMPORT_PROGRESS.rawValue:
                 self.detailLabel.stringValue = "Imported \(event.importedRows) rows…"
             case VIRGULE_IMPORT_COMPLETED.rawValue:
-                self.titleLabel.stringValue = "Imported \(event.importedRows) rows"
-                self.detailLabel.stringValue = "Local read-only cache: \(event.message)"
-                self.openButton.title = "Choose another CSV…"
                 self.openButton.isEnabled = true
                 self.cachePath = event.message
                 self.importedRowCount = event.importedRows
@@ -265,6 +254,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
 
     private func setGridVisible(_ isVisible: Bool) {
         gridView.isHidden = !isVisible
+        controls.isHidden = isVisible
         NSLayoutConstraint.deactivate(isVisible ? emptyStateConstraints : previewStateConstraints)
         NSLayoutConstraint.activate(isVisible ? previewStateConstraints : emptyStateConstraints)
     }

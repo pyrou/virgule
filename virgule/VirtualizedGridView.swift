@@ -46,12 +46,16 @@ final class VirtualizedGridView: NSView {
     private let rowNumberDocumentView = VirtualizedGridRowNumberDocumentView()
     private let rowNumberHeaderView = VirtualizedGridRowNumberHeaderView()
     private let columnLayout = VirtualizedGridColumnLayout()
+    private let headerMaterialView = NSVisualEffectView()
+    private let headerFadeView = VirtualizedGridHeaderFadeView()
     private var boundsObserver: NSObjectProtocol?
 
     /// Useful for UI tests and diagnostics: this count is bounded by the
     /// viewport, rather than by the number of rows in the result.
     var visibleRowViewCount: Int { documentView.visibleRowViewCount }
     var visibleCellViewCount: Int { documentView.visibleCellViewCount }
+
+    override var isFlipped: Bool { true }
 
     /// Scrolls the document to a model row. Kept internal for deterministic
     /// AppKit verification that scrolling does not create off-screen views.
@@ -74,6 +78,13 @@ final class VirtualizedGridView: NSView {
     }
 
     private func configureViews() {
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+
+        headerMaterialView.material = .headerView
+        headerMaterialView.blendingMode = .withinWindow
+        headerMaterialView.state = .active
+
         headerClipView.drawsBackground = false
         headerClipView.documentView = headerDocumentView
         headerDocumentView.grid = self
@@ -90,16 +101,18 @@ final class VirtualizedGridView: NSView {
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = true
         scrollView.autohidesScrollers = true
-        scrollView.borderType = .lineBorder
+        scrollView.borderType = .noBorder
         scrollView.contentView.postsBoundsChangedNotifications = true
         scrollView.documentView = documentView
         documentView.grid = self
         documentView.columnLayout = columnLayout
 
-        addSubview(headerClipView)
+        addSubview(headerMaterialView)
         addSubview(rowNumberHeaderView)
         addSubview(rowNumberClipView)
         addSubview(scrollView)
+        addSubview(headerClipView)
+        addSubview(headerFadeView)
         boundsObserver = NotificationCenter.default.addObserver(
             forName: NSView.boundsDidChangeNotification,
             object: scrollView.contentView,
@@ -117,6 +130,7 @@ final class VirtualizedGridView: NSView {
 
     override func layout() {
         super.layout()
+        headerMaterialView.frame = NSRect(x: 0, y: 0, width: bounds.width, height: Self.headerHeight)
         rowNumberHeaderView.frame = NSRect(x: 0, y: 0, width: Self.rowNumberWidth, height: Self.headerHeight)
         rowNumberClipView.frame = NSRect(
             x: 0,
@@ -129,6 +143,12 @@ final class VirtualizedGridView: NSView {
             y: 0,
             width: max(0, bounds.width - Self.rowNumberWidth),
             height: Self.headerHeight
+        )
+        headerFadeView.frame = NSRect(
+            x: 0,
+            y: Self.headerHeight - Self.headerFadeHeight,
+            width: bounds.width,
+            height: Self.headerFadeHeight
         )
         scrollView.frame = NSRect(
             x: Self.rowNumberWidth,
@@ -188,8 +208,9 @@ final class VirtualizedGridView: NSView {
         updateDocumentMetrics()
     }
 
-    private static let headerHeight: CGFloat = 24
-    private static let rowNumberWidth: CGFloat = 56
+    private static let headerHeight: CGFloat = 30
+    private static let headerFadeHeight: CGFloat = 6
+    private static let rowNumberWidth: CGFloat = 52
 }
 
 /// Shared geometry for the document and the pinned header. Keeping this in one
@@ -260,7 +281,7 @@ private final class VirtualizedGridColumnLayout {
 }
 
 private final class VirtualizedGridDocumentView: NSView {
-    static let rowHeight: CGFloat = 24
+    static let rowHeight: CGFloat = 28
 
     private var rowCount = 0
     private var columnCount = 0
@@ -356,7 +377,7 @@ private final class VirtualizedGridDocumentView: NSView {
 /// the data columns scroll horizontally. It mirrors the body's vertical
 /// viewport and virtualizes labels with the same geometry as data rows.
 private final class VirtualizedGridRowNumberDocumentView: NSView {
-    private static let rowHeight: CGFloat = 24
+    private static let rowHeight: CGFloat = 28
 
     private var rowCount = 0
     private var activeLabels: [Int: VirtualizedGridRowNumberView] = [:]
@@ -420,8 +441,9 @@ private final class VirtualizedGridRowNumberHeaderView: NSTextField {
         isBordered = false
         alignment = .right
         drawsBackground = true
-        backgroundColor = .controlBackgroundColor
-        font = .monospacedSystemFont(ofSize: 12, weight: .semibold)
+        backgroundColor = .clear
+        textColor = .secondaryLabelColor
+        font = .systemFont(ofSize: 12, weight: .semibold)
         wantsLayer = true
         layer?.borderWidth = 0.5
         layer?.borderColor = NSColor.separatorColor.cgColor
@@ -453,7 +475,7 @@ private final class VirtualizedGridRowNumberView: NSTextField {
 }
 
 private final class VirtualizedGridHeaderDocumentView: NSView {
-    private static let headerHeight: CGFloat = 24
+    private static let headerHeight: CGFloat = 30
 
     private var columnCount = 0
     private var activeCells: [Int: VirtualizedGridHeaderCellView] = [:]
@@ -527,9 +549,8 @@ private final class VirtualizedGridHeaderCellView: NSTextField {
         isEditable = false
         isSelectable = false
         isBordered = false
-        drawsBackground = true
-        backgroundColor = .controlBackgroundColor
-        font = .monospacedSystemFont(ofSize: 12, weight: .semibold)
+        drawsBackground = false
+        font = .systemFont(ofSize: 12, weight: .semibold)
         lineBreakMode = .byTruncatingTail
         cell?.lineBreakMode = .byTruncatingTail
         wantsLayer = true
@@ -579,7 +600,18 @@ private final class VirtualizedGridRowView: NSView {
 
     override var isFlipped: Bool { true }
 
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard let row = rowIndex else { return }
+        let color = row.isMultiple(of: 2)
+            ? NSColor.controlBackgroundColor.withAlphaComponent(0.42)
+            : NSColor.clear
+        color.setFill()
+        NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 2), xRadius: 6, yRadius: 6).fill()
+    }
+
     var visibleCellViewCount: Int { activeCells.count }
+    private var rowIndex: Int?
 
     func configure(
         row: Int,
@@ -587,6 +619,8 @@ private final class VirtualizedGridRowView: NSView {
         columnLayout: VirtualizedGridColumnLayout?,
         value: (Int, Int) -> String
     ) {
+        rowIndex = row
+        needsDisplay = true
         let requiredColumns = Set(columns)
         let columnsToRecycle = activeCells.keys.filter { !requiredColumns.contains($0) }
         for column in columnsToRecycle {
@@ -634,16 +668,39 @@ private final class VirtualizedGridCellView: NSTextField {
         isSelectable = true
         drawsBackground = false
         isBordered = false
-        font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        font = .systemFont(ofSize: 13, weight: .regular)
         lineBreakMode = .byTruncatingTail
         cell?.lineBreakMode = .byTruncatingTail
         wantsLayer = true
-        layer?.borderWidth = 0.5
-        layer?.borderColor = NSColor.separatorColor.cgColor
         translatesAutoresizingMaskIntoConstraints = true
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+}
+
+/// A soft edge below the pinned header recalls Finder's translucent list
+/// header while keeping row rendering and scrolling fully virtualized.
+private final class VirtualizedGridHeaderFadeView: NSView {
+    override var isFlipped: Bool { true }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        let colors = [
+            NSColor.separatorColor.withAlphaComponent(0.5).cgColor,
+            NSColor.clear.cgColor,
+        ] as CFArray
+        guard let gradient = CGGradient(
+            colorsSpace: CGColorSpaceCreateDeviceRGB(),
+            colors: colors,
+            locations: [0, 1]
+        ) else { return }
+        context.drawLinearGradient(
+            gradient,
+            start: NSPoint(x: 0, y: 0),
+            end: NSPoint(x: 0, y: bounds.height),
+            options: []
+        )
     }
 }
