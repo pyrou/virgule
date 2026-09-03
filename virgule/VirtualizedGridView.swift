@@ -12,6 +12,10 @@ protocol VirtualizedGridDataSource: AnyObject {
     func grid(_ grid: VirtualizedGridView, rowNumberForRow row: Int) -> Int
     func grid(_ grid: VirtualizedGridView, valueForRow row: Int, column: Int) -> String
     func grid(_ grid: VirtualizedGridView, titleForColumn column: Int) -> String
+    /// Announces the rows currently needed to render the viewport. Data
+    /// sources must return immediately from value lookup and can load these
+    /// rows asynchronously from a paginated backing store.
+    func grid(_ grid: VirtualizedGridView, willDisplayRows rows: Range<Int>)
 }
 
 extension VirtualizedGridDataSource {
@@ -22,6 +26,8 @@ extension VirtualizedGridDataSource {
     func grid(_ grid: VirtualizedGridView, titleForColumn column: Int) -> String {
         "Column \(column + 1)"
     }
+
+    func grid(_ grid: VirtualizedGridView, willDisplayRows rows: Range<Int>) {}
 }
 
 /// A scrollable AppKit grid which creates row and cell views only for the
@@ -280,6 +286,9 @@ private final class VirtualizedGridDocumentView: NSView {
     func refreshVisibleViews() {
         let visibleRows = visibleRowRange()
         let visibleColumns = visibleColumnRange()
+        if let grid {
+            grid.dataSource?.grid(grid, willDisplayRows: visibleRows)
+        }
         let requiredRows = Set(visibleRows)
 
         let rowsToRecycle = activeRows.keys.filter { !requiredRows.contains($0) }

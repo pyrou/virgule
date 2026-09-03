@@ -1136,6 +1136,19 @@ pub struct VirguleImportEvent {
 
 pub type VirguleImportCallback = unsafe extern "C" fn(*const VirguleImportEvent, *mut c_void);
 
+/// C-compatible CSV result row. All borrowed data remains valid only during
+/// the page callback that receives it.
+#[repr(C)]
+pub struct VirgulePageRow {
+    result_row: usize,
+    source_row: i64,
+    values: *const *const c_char,
+    value_count: usize,
+    message: *const c_char,
+}
+
+pub type VirgulePageCallback = unsafe extern "C" fn(*const VirgulePageRow, *mut c_void);
+
 fn emit_ffi_event(callback: VirguleImportCallback, context: *mut c_void, event: ImportEvent) {
     let (kind, row, imported_rows, total_bytes, values, message) = match event {
         ImportEvent::Started { total_bytes } => (0, 0, 0, total_bytes, Vec::new(), String::new()),
@@ -1262,6 +1275,92 @@ pub unsafe extern "C" fn virgule_engine_import_csv(
         |event| emit_ffi_event(callback, context, event),
     ) {
         emit_ffi_error(callback, context, &error);
+    }
+    0
+}
+
+fn emit_ffi_page_error(
+    callback: VirgulePageCallback,
+    context: *mut c_void,
+    error: impl fmt::Display,
+) {
+    let message = CString::new(error.to_string()).unwrap_or_else(|_| CString::default());
+    let event = VirgulePageRow {
+        result_row: usize::MAX,
+        source_row: 0,
+        values: std::ptr::null(),
+        value_count: 0,
+        message: message.as_ptr(),
+    };
+    // SAFETY: callback and context are supplied by the C host; message lives for this call.
+    unsafe { callback(&event, context) };
+}
+
+/// Reads one bounded result page from a completed cache. The cache path is
+/// supplied by the host from the completion import event, so the engine never
+/// needs to retain a source file handle.
+///
+/// # Safety
+/// `engine` must be an engine returned by `virgule_engine_create`; `cache_path`
+/// must be a NUL-terminated UTF-8 string; and `callback` must remain callable
+/// until this function returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn virgule_engine_read_csv_page(
+    engine: *mut VirguleEngine,
+    cache_path: *const c_char,
+    offset: usize,
+    limit: usize,
+    callback: Option<VirgulePageCallback>,
+    context: *mut c_void,
+) -> i32 {
+    let Some(callback) = callback else {
+        return -1;
+    };
+    if engine.is_null() || cache_path.is_null() || limit == 0 {
+        return -1;
+    }
+    // SAFETY: required by this function's C contract.
+    let cache_path = unsafe { CStr::from_ptr(cache_path) };
+    let Ok(cache_path) = cache_path.to_str() else {
+        emit_ffi_page_error(callback, context, "The cache path is not UTF-8.");
+        return 0;
+    };
+    let path = PathBuf::from(cache_path);
+    let connection = match Connection::open(&path) {
+        Ok(connection) => connection,
+        Err(error) => {
+            emit_ffi_page_error(callback, context, error);
+            return 0;
+        }
+    };
+    let cache = CsvCache { connection, path };
+    let page = match cache.read_csv_page(offset, limit) {
+        Ok(page) => page,
+        Err(error) => {
+            emit_ffi_page_error(callback, context, error);
+            return 0;
+        }
+    };
+    for (index, row) in page.rows.into_iter().enumerate() {
+        let values = row
+            .values
+            .into_iter()
+            .map(|value| CString::new(value).unwrap_or_else(|_| CString::default()))
+            .collect::<Vec<_>>();
+        let pointers = values
+            .iter()
+            .map(|value| value.as_ptr())
+            .collect::<Vec<_>>();
+        let message = CString::default();
+        let event = VirgulePageRow {
+            result_row: page.offset + index,
+            source_row: row.source_row,
+            values: pointers.as_ptr(),
+            value_count: pointers.len(),
+            message: message.as_ptr(),
+        };
+        // SAFETY: callback and context are supplied by the C host; all event storage lives for this call.
+        unsafe { callback(&event, context) };
     }
     0
 }

@@ -12,6 +12,13 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private var previewStateConstraints: [NSLayoutConstraint] = []
     private var currentImportID: UUID?
     private var previewRows: [[String]] = []
+    private var cachePath: String?
+    private var importedRowCount = 0
+    private var cachedRows: [Int: CachedRow] = [:]
+    private var loadingPageOffsets = Set<Int>()
+    private var columnCount = 0
+    private let pageSize = 256
+    private let maximumCachedPages = 8
 
     deinit {
         virgule_engine_destroy(engine)
@@ -104,6 +111,11 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         let importID = UUID()
         currentImportID = importID
         previewRows = []
+        cachePath = nil
+        importedRowCount = 0
+        cachedRows = [:]
+        loadingPageOffsets = []
+        columnCount = 0
         setGridVisible(false)
         gridView.reloadData()
         titleLabel.stringValue = "Importing \(url.lastPathComponent)…"
@@ -153,6 +165,10 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
                 self.detailLabel.stringValue = "Local read-only cache: \(event.message)"
                 self.openButton.title = "Choose another CSV…"
                 self.openButton.isEnabled = true
+                self.cachePath = event.message
+                self.importedRowCount = event.importedRows
+                self.setGridVisible(true)
+                self.gridView.reloadData()
             case VIRGULE_IMPORT_ERROR.rawValue:
                 self.titleLabel.stringValue = "Could not import the CSV"
                 self.detailLabel.stringValue = event.message
@@ -165,15 +181,86 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     }
 
     func numberOfRows(in grid: VirtualizedGridView) -> Int {
-        previewRows.count
+        cachePath == nil ? previewRows.count : importedRowCount
     }
 
     func numberOfColumns(in grid: VirtualizedGridView) -> Int {
-        previewRows.map { $0.count }.max() ?? 0
+        max(columnCount, previewRows.map { $0.count }.max() ?? 0)
     }
 
     func grid(_ grid: VirtualizedGridView, valueForRow row: Int, column: Int) -> String {
-        previewRows[row].indices.contains(column) ? previewRows[row][column] : ""
+        if cachePath != nil {
+            guard let values = cachedRows[row]?.values, values.indices.contains(column) else { return "" }
+            return values[column]
+        }
+        return previewRows[row].indices.contains(column) ? previewRows[row][column] : ""
+    }
+
+    func grid(_ grid: VirtualizedGridView, rowNumberForRow row: Int) -> Int {
+        cachedRows[row]?.sourceRow ?? row + 1
+    }
+
+    func grid(_ grid: VirtualizedGridView, willDisplayRows rows: Range<Int>) {
+        guard let cachePath, !rows.isEmpty else { return }
+        let firstPage = (rows.lowerBound / pageSize) * pageSize
+        let lastPage = ((rows.upperBound - 1) / pageSize) * pageSize
+        for offset in stride(from: max(0, firstPage - pageSize), through: lastPage + pageSize, by: pageSize) {
+            guard offset < importedRowCount, !loadingPageOffsets.contains(offset), !isPageCached(offset) else { continue }
+            loadPage(at: offset, cachePath: cachePath)
+        }
+    }
+
+    private func isPageCached(_ offset: Int) -> Bool {
+        cachedRows[offset] != nil || (offset >= importedRowCount)
+    }
+
+    private func loadPage(at offset: Int, cachePath: String) {
+        guard let importID = currentImportID else { return }
+        loadingPageOffsets.insert(offset)
+        let context = Unmanaged.passRetained(PageContext(controller: self, importID: importID, offset: offset))
+        DispatchQueue.global(qos: .userInitiated).async {
+            defer {
+                context.release()
+                DispatchQueue.main.async { [weak self] in
+                    self?.finishLoadingPage(at: offset, importID: importID)
+                }
+            }
+            _ = cachePath.withCString { path in
+                virgule_engine_read_csv_page(
+                    self.engine,
+                    path,
+                    offset,
+                    self.pageSize,
+                    virgulePageCallback,
+                    context.toOpaque()
+                )
+            }
+        }
+    }
+
+    fileprivate func receivePageRow(_ event: PageRowSnapshot, importID: UUID, offset: Int) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.currentImportID == importID else { return }
+            if let message = event.errorMessage {
+                self.detailLabel.stringValue = "Could not load rows: \(message)"
+                return
+            }
+            self.columnCount = max(self.columnCount, event.values.count)
+            self.cachedRows[event.resultRow] = CachedRow(sourceRow: event.sourceRow, values: event.values)
+        }
+    }
+
+    private func finishLoadingPage(at offset: Int, importID: UUID) {
+        guard currentImportID == importID else { return }
+        loadingPageOffsets.remove(offset)
+        trimCachedPages(around: offset)
+        gridView.reloadData()
+    }
+
+    private func trimCachedPages(around currentOffset: Int) {
+        let minimumOffset = max(0, currentOffset - (maximumCachedPages / 2) * pageSize)
+        let maximumOffset = currentOffset + (maximumCachedPages / 2) * pageSize
+        cachedRows = cachedRows.filter { row, _ in row >= minimumOffset && row < maximumOffset }
     }
 
     private func setGridVisible(_ isVisible: Bool) {
@@ -227,12 +314,36 @@ private final class ImportContext {
     }
 }
 
+private struct CachedRow {
+    let sourceRow: Int
+    let values: [String]
+}
+
+private final class PageContext {
+    weak var controller: ContentViewController?
+    let importID: UUID
+    let offset: Int
+
+    init(controller: ContentViewController, importID: UUID, offset: Int) {
+        self.controller = controller
+        self.importID = importID
+        self.offset = offset
+    }
+}
+
 private struct ImportEventSnapshot {
     let kind: UInt32
     let importedRows: Int
     let totalBytes: UInt64
     let values: [String]
     let message: String
+}
+
+private struct PageRowSnapshot {
+    let resultRow: Int
+    let sourceRow: Int
+    let values: [String]
+    let errorMessage: String?
 }
 
 private let virguleImportCallback: VirguleImportCallback = { event, context in
@@ -252,6 +363,24 @@ private let virguleImportCallback: VirguleImportCallback = { event, context in
         message: importedEvent.message.map { String(cString: $0) } ?? ""
     )
     importContext.controller?.receiveImportEvent(snapshot, importID: importContext.importID)
+}
+
+private let virgulePageCallback: VirgulePageCallback = { row, context in
+    guard let row, let context else { return }
+    let pageContext = Unmanaged<PageContext>.fromOpaque(context).takeUnretainedValue()
+    let pageRow = row.pointee
+    let message = pageRow.message.map { String(cString: $0) } ?? ""
+    let snapshot = PageRowSnapshot(
+        resultRow: pageRow.result_row,
+        sourceRow: Int(pageRow.source_row),
+        values: pageRow.values.map { values in
+            (0 ..< Int(pageRow.value_count)).compactMap { index in
+                values[index].map { String(cString: $0) }
+            }
+        } ?? [],
+        errorMessage: pageRow.result_row == Int.max ? message : nil
+    )
+    pageContext.controller?.receivePageRow(snapshot, importID: pageContext.importID, offset: pageContext.offset)
 }
 
 private extension NSToolbarItem.Identifier {

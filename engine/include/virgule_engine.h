@@ -49,6 +49,32 @@ int32_t virgule_engine_import_csv(
     void *context
 );
 
+/// One borrowed CSV result row. The values and message pointers are valid only
+/// while the page callback runs. `result_row` is the zero-based row index in
+/// the current result, while `source_row` is the stable SQLite rowid.
+typedef struct VirgulePageRow {
+    size_t result_row;
+    int64_t source_row;
+    const char * const *values;
+    size_t value_count;
+    const char *message;
+} VirgulePageRow;
+
+typedef void (*VirgulePageCallback)(const VirgulePageRow *row, void *context);
+
+/// Reads one bounded page from a completed local cache. The source CSV is
+/// never opened or modified. On an operational error, the callback receives a
+/// row with result_row set to SIZE_MAX and a descriptive message.
+/// Returns 0 for a valid call and -1 for invalid arguments.
+int32_t virgule_engine_read_csv_page(
+    VirguleEngine *engine,
+    const char *cache_path,
+    size_t offset,
+    size_t limit,
+    VirgulePageCallback callback,
+    void *context
+);
+
 #ifdef __cplusplus
 }
 #endif
