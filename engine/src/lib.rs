@@ -86,9 +86,16 @@ impl fmt::Display for SqlValidationError {
 impl std::error::Error for SqlValidationError {}
 
 impl CsvCache {
-    /// Creates or opens the cache associated with `source_file`.
-    pub fn open_for_source(source_file: &Path) -> rusqlite::Result<Self> {
-        let path = cache_path_for(source_file);
+    /// Creates or opens the cache associated with `source_file` in `cache_directory`.
+    pub fn open_for_source(
+        source_file: &Path,
+        cache_directory: &Path,
+    ) -> Result<Self, ImportError> {
+        fs::create_dir_all(cache_directory).map_err(|error| ImportError::CacheDirectory {
+            path: cache_directory.to_owned(),
+            error,
+        })?;
+        let path = cache_path_for(source_file, cache_directory);
         let connection = Connection::open(&path)?;
         Ok(Self { connection, path })
     }
@@ -343,6 +350,10 @@ pub struct CsvColumnMetadata {
 #[derive(Debug)]
 pub enum ImportError {
     Io(std::io::Error),
+    CacheDirectory {
+        path: PathBuf,
+        error: std::io::Error,
+    },
     Decode(DecodeError),
     Csv(CsvParseError),
     Database(rusqlite::Error),
@@ -360,6 +371,11 @@ impl fmt::Display for ImportError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Io(error) => write!(formatter, "Could not read the CSV file: {error}"),
+            Self::CacheDirectory { path, error } => write!(
+                formatter,
+                "Could not create the local cache directory at {}: {error}",
+                path.display()
+            ),
             Self::Decode(error) => write!(formatter, "Could not decode the CSV file: {error:?}"),
             Self::Csv(error) => write!(formatter, "Could not parse the CSV file: {error:?}"),
             Self::Database(error) => write!(formatter, "Could not create the local cache: {error}"),
@@ -471,13 +487,25 @@ fn column_type_name(column_type: ColumnType) -> &'static str {
     }
 }
 
-/// Returns a sibling cache path without changing the CSV file or its extension.
-pub fn cache_path_for(source_file: &Path) -> PathBuf {
+/// Returns a cache path that never writes beside the source CSV.
+pub fn cache_path_for(source_file: &Path, cache_directory: &Path) -> PathBuf {
     let file_name = source_file
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or("csv");
-    source_file.with_file_name(format!("{file_name}.virgule.sqlite"))
+    let source_identifier = source_file
+        .canonicalize()
+        .unwrap_or_else(|_| source_file.to_owned());
+    cache_directory.join(format!(
+        "{file_name}-{:016x}.virgule.sqlite",
+        fnv1a_64(source_identifier.to_string_lossy().as_bytes())
+    ))
+}
+
+fn fnv1a_64(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf29ce484222325_u64, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
+    })
 }
 
 /// Delimiters supported by the CSV importer.
@@ -1023,6 +1051,7 @@ fn most_common_width(widths: &[usize]) -> Option<(usize, usize)> {
 /// host to show rows while the cache is still being populated.
 pub fn import_source_file(
     source_file: &Path,
+    cache_directory: &Path,
     mut report: impl FnMut(ImportEvent),
 ) -> Result<(), ImportError> {
     let bytes = fs::read(source_file)?;
@@ -1069,7 +1098,7 @@ pub fn import_source_file(
                 .filter_map(|row| row.get(index).map(String::as_str)),
         ),
     });
-    let mut cache = CsvCache::open_for_source(source_file)?;
+    let mut cache = CsvCache::open_for_source(source_file, cache_directory)?;
     cache.create_csv_table(columns)?;
     let imported_rows = cache.import_records_with_progress(
         "csv",
@@ -1191,19 +1220,20 @@ pub unsafe extern "C" fn virgule_engine_destroy(engine: *mut VirguleEngine) {
 ///
 /// # Safety
 /// `engine` must be an engine returned by `virgule_engine_create`; `source_path`
-/// must be a NUL-terminated UTF-8 string; and `callback` must remain callable
-/// until this function returns.
+/// and `cache_directory` must be NUL-terminated UTF-8 strings; and `callback`
+/// must remain callable until this function returns.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn virgule_engine_import_csv(
     engine: *mut VirguleEngine,
     source_path: *const c_char,
+    cache_directory: *const c_char,
     callback: Option<VirguleImportCallback>,
     context: *mut c_void,
 ) -> i32 {
     let Some(callback) = callback else {
         return -1;
     };
-    if engine.is_null() || source_path.is_null() {
+    if engine.is_null() || source_path.is_null() || cache_directory.is_null() {
         return -1;
     }
     // SAFETY: required by this function's C contract.
@@ -1216,9 +1246,21 @@ pub unsafe extern "C" fn virgule_engine_import_csv(
         emit_ffi_error(callback, context, &error);
         return 0;
     };
-    if let Err(error) = import_source_file(Path::new(source_path), |event| {
-        emit_ffi_event(callback, context, event)
-    }) {
+    // SAFETY: required by this function's C contract.
+    let cache_directory = unsafe { CStr::from_ptr(cache_directory) };
+    let Ok(cache_directory) = cache_directory.to_str() else {
+        let error = ImportError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "The cache directory path is not UTF-8.",
+        ));
+        emit_ffi_error(callback, context, &error);
+        return 0;
+    };
+    if let Err(error) = import_source_file(
+        Path::new(source_path),
+        Path::new(cache_directory),
+        |event| emit_ffi_event(callback, context, event),
+    ) {
         emit_ffi_error(callback, context, &error);
     }
     0
@@ -1238,7 +1280,9 @@ mod tests {
         fs::write(&source, source_bytes).expect("writes CSV fixture");
         let mut events = Vec::new();
 
-        import_source_file(&source, |event| events.push(event)).expect("imports fixture");
+        let cache_directory = directory.join("cache");
+        import_source_file(&source, &cache_directory, |event| events.push(event))
+            .expect("imports fixture");
 
         assert!(
             matches!(events.first(), Some(ImportEvent::Started { total_bytes }) if *total_bytes == source_bytes.len() as u64)
@@ -1261,12 +1305,17 @@ mod tests {
             .expect("reports completion");
         assert!(preview_index < completion_index);
         assert!(events.iter().any(|event| matches!(event, ImportEvent::Preview { values, .. } if values == &vec!["Ada".to_owned(), "42".to_owned()])));
+        assert!(events.iter().any(|event| matches!(
+            event,
+            ImportEvent::Completed { cache_path, .. } if cache_path.starts_with(&cache_directory)
+        )));
         assert_eq!(
             fs::read(&source).expect("rereads CSV fixture"),
             source_bytes
         );
 
-        fs::remove_file(cache_path_for(&source)).expect("removes cache fixture");
+        fs::remove_file(cache_path_for(&source, &cache_directory)).expect("removes cache fixture");
+        fs::remove_dir(cache_directory).expect("removes cache directory");
         fs::remove_file(source).expect("removes CSV fixture");
         fs::remove_dir(directory).expect("removes temporary directory");
     }
@@ -1361,11 +1410,12 @@ mod tests {
     }
 
     #[test]
-    fn cache_path_is_a_sibling_of_the_source_without_replacing_it() {
+    fn cache_path_uses_the_app_cache_directory_without_replacing_the_source() {
         let source = Path::new("/tmp/export.csv");
+        let cache_directory = Path::new("/tmp/Virgule");
         assert_eq!(
-            cache_path_for(source),
-            PathBuf::from("/tmp/export.csv.virgule.sqlite")
+            cache_path_for(source, cache_directory),
+            PathBuf::from("/tmp/Virgule/export.csv-b4252aaf68ef7074.virgule.sqlite")
         );
     }
 

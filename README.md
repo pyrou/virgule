@@ -35,7 +35,7 @@ Rust engine
 Local temporary cache for each source file (SQLite)
 ```
 
-Rust reads the CSV as a stream and imports it into a cached SQLite database. The grid receives only result pages, so it never creates cells for off-screen rows. The imported table is named `csv`.
+Rust reads the CSV as a stream and imports it into a cached SQLite database in Virgule’s macOS cache directory; it never writes next to or modifies the source file. The grid receives only result pages, so it never creates cells for off-screen rows. The imported table is named `csv`.
 
 The query bar always displays the exact SQL behind the current view. Sort and filter actions produce readable SQL. Only `SELECT`, `WITH`, and `EXPLAIN` queries are allowed; any statement that can modify SQLite is rejected.
 

@@ -37,12 +37,14 @@ typedef struct VirguleImportEvent {
 
 typedef void (*VirguleImportCallback)(const VirguleImportEvent *event, void *context);
 
-/// Imports source_path synchronously. The UTF-8 path and callback are borrowed
-/// for this call only. Operational failures are emitted as VIRGULE_IMPORT_ERROR.
+/// Imports source_path synchronously into cache_directory. The UTF-8 paths and
+/// callback are borrowed for this call only. Operational failures are emitted as
+/// VIRGULE_IMPORT_ERROR.
 /// Returns 0 for a valid call and -1 for invalid arguments.
 int32_t virgule_engine_import_csv(
     VirguleEngine *engine,
     const char *source_path,
+    const char *cache_directory,
     VirguleImportCallback callback,
     void *context
 );

@@ -103,15 +103,20 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
 
     private func startImporting(_ url: URL, importID: UUID) {
         let context = Unmanaged.passRetained(ImportContext(controller: self, importID: importID))
+        let cacheDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("com.fizzup.virgule", isDirectory: true)
         DispatchQueue.global(qos: .userInitiated).async {
             defer { context.release() }
             _ = url.path.withCString { sourcePath in
-                virgule_engine_import_csv(
-                    self.engine,
-                    sourcePath,
-                    virguleImportCallback,
-                    context.toOpaque()
-                )
+                cacheDirectory.path.withCString { cachePath in
+                    virgule_engine_import_csv(
+                        self.engine,
+                        sourcePath,
+                        cachePath,
+                        virguleImportCallback,
+                        context.toOpaque()
+                    )
+                }
             }
         }
     }
