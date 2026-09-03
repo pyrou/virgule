@@ -32,6 +32,81 @@ impl CsvCache {
     pub fn connection(&self) -> &Connection {
         &self.connection
     }
+
+    /// Imports parsed records into an existing table as one all-or-nothing SQLite
+    /// transaction. The destination table must have exactly `column_count` columns.
+    ///
+    /// Rows are inserted using one prepared statement, keeping the import bounded
+    /// in SQLite rather than constructing a statement per CSV record.
+    pub fn import_records<I>(
+        &mut self,
+        table_name: &str,
+        column_count: usize,
+        records: I,
+    ) -> Result<usize, ImportError>
+    where
+        I: IntoIterator<Item = Result<Vec<String>, CsvParseError>>,
+    {
+        if column_count == 0 {
+            return Err(ImportError::NoColumns);
+        }
+
+        let table_name = quote_identifier(table_name);
+        let placeholders = (1..=column_count)
+            .map(|index| format!("?{index}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let sql = format!("INSERT INTO {table_name} VALUES ({placeholders})");
+        let transaction = self.connection.transaction()?;
+        let mut statement = transaction.prepare(&sql)?;
+        let mut imported_rows = 0;
+
+        for (record_index, record) in records.into_iter().enumerate() {
+            let values = record?;
+            if values.len() != column_count {
+                return Err(ImportError::UnexpectedColumnCount {
+                    record: record_index + 1,
+                    expected: column_count,
+                    actual: values.len(),
+                });
+            }
+            statement.execute(rusqlite::params_from_iter(values))?;
+            imported_rows += 1;
+        }
+
+        drop(statement);
+        transaction.commit()?;
+        Ok(imported_rows)
+    }
+}
+
+/// An error that prevents a CSV cache import from completing.
+#[derive(Debug)]
+pub enum ImportError {
+    Csv(CsvParseError),
+    Database(rusqlite::Error),
+    NoColumns,
+    UnexpectedColumnCount {
+        record: usize,
+        expected: usize,
+        actual: usize,
+    },
+}
+
+impl From<CsvParseError> for ImportError {
+    fn from(error: CsvParseError) -> Self {
+        Self::Csv(error)
+    }
+}
+
+impl From<rusqlite::Error> for ImportError {
+    fn from(error: rusqlite::Error) -> Self {
+        Self::Database(error)
+    }
+}
+
+fn quote_identifier(identifier: &str) -> String {
+    format!("\"{}\"", identifier.replace('"', "\"\""))
 }
 
 /// Returns a sibling cache path without changing the CSV file or its extension.
@@ -700,6 +775,104 @@ mod tests {
             cache_path_for(source),
             PathBuf::from("/tmp/export.csv.virgule.sqlite")
         );
+    }
+
+    #[test]
+    fn imports_records_with_one_prepared_statement() {
+        let connection = Connection::open_in_memory().expect("opens in-memory SQLite");
+        connection
+            .execute_batch("CREATE TABLE import_target (name TEXT, city TEXT)")
+            .expect("creates import target");
+        let mut cache = CsvCache {
+            connection,
+            path: PathBuf::from(":memory:"),
+        };
+        let records = CsvRecords::new("Ada,Paris\nLin,Tokyo", Delimiter::Comma);
+
+        assert!(matches!(
+            cache.import_records("import_target", 2, records),
+            Ok(2)
+        ));
+        let mut statement = cache
+            .connection()
+            .prepare("SELECT name, city FROM import_target ORDER BY rowid")
+            .expect("prepares result query");
+        let rows = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .expect("queries imported rows")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("reads imported rows");
+        assert_eq!(
+            rows,
+            vec![
+                ("Ada".to_owned(), "Paris".to_owned()),
+                ("Lin".to_owned(), "Tokyo".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn rolls_back_the_entire_import_after_a_csv_error() {
+        let connection = Connection::open_in_memory().expect("opens in-memory SQLite");
+        connection
+            .execute_batch("CREATE TABLE import_target (value TEXT)")
+            .expect("creates import target");
+        let mut cache = CsvCache {
+            connection,
+            path: PathBuf::from(":memory:"),
+        };
+        let records = vec![
+            Ok(vec!["kept only if committed".to_owned()]),
+            Err(CsvParseError::UnterminatedQuotedField),
+        ];
+
+        assert!(matches!(
+            cache.import_records("import_target", 1, records),
+            Err(ImportError::Csv(CsvParseError::UnterminatedQuotedField))
+        ));
+        let count: i64 = cache
+            .connection()
+            .query_row("SELECT COUNT(*) FROM import_target", [], |row| row.get(0))
+            .expect("counts rows after failed import");
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn rolls_back_the_entire_import_when_a_record_has_the_wrong_width() {
+        let connection = Connection::open_in_memory().expect("opens in-memory SQLite");
+        connection
+            .execute_batch("CREATE TABLE import_target (first TEXT, second TEXT)")
+            .expect("creates import target");
+        let mut cache = CsvCache {
+            connection,
+            path: PathBuf::from(":memory:"),
+        };
+
+        let error = cache
+            .import_records(
+                "import_target",
+                2,
+                vec![
+                    Ok(vec!["Ada".to_owned(), "Paris".to_owned()]),
+                    Ok(vec!["Lin".to_owned()]),
+                ],
+            )
+            .expect_err("rejects an uneven CSV record");
+        assert!(matches!(
+            error,
+            ImportError::UnexpectedColumnCount {
+                record: 2,
+                expected: 2,
+                actual: 1,
+            }
+        ));
+        let count: i64 = cache
+            .connection()
+            .query_row("SELECT COUNT(*) FROM import_target", [], |row| row.get(0))
+            .expect("counts rows after failed import");
+        assert_eq!(count, 0);
     }
 
     #[test]
