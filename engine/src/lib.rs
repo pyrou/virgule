@@ -1,5 +1,9 @@
 //! The data engine exposed to the macOS application through a stable C ABI.
 
+use std::ffi::{CStr, CString, c_void};
+use std::fmt;
+use std::fs;
+use std::os::raw::c_char;
 use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
@@ -8,6 +12,29 @@ use rusqlite::Connection;
 pub struct VirguleEngine {
     _private: (),
 }
+
+/// A notification emitted while importing a source file.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ImportEvent {
+    Started {
+        total_bytes: u64,
+    },
+    Preview {
+        row: usize,
+        values: Vec<String>,
+    },
+    Progress {
+        imported_rows: usize,
+        total_bytes: u64,
+    },
+    Completed {
+        imported_rows: usize,
+        cache_path: PathBuf,
+    },
+}
+
+const PREVIEW_ROW_LIMIT: usize = 20;
+const PROGRESS_ROW_INTERVAL: usize = 1_000;
 
 /// A local SQLite cache that is distinct from its read-only CSV source file.
 pub struct CsvCache {
@@ -47,10 +74,23 @@ impl CsvCache {
     where
         I: IntoIterator<Item = Result<Vec<String>, CsvParseError>>,
     {
+        self.import_records_with_progress(table_name, column_count, records, |_| {})
+    }
+
+    fn import_records_with_progress<I, F>(
+        &mut self,
+        table_name: &str,
+        column_count: usize,
+        records: I,
+        mut report_progress: F,
+    ) -> Result<usize, ImportError>
+    where
+        I: IntoIterator<Item = Result<Vec<String>, CsvParseError>>,
+        F: FnMut(usize),
+    {
         if column_count == 0 {
             return Err(ImportError::NoColumns);
         }
-
         let table_name = quote_identifier(table_name);
         let placeholders = (1..=column_count)
             .map(|index| format!("?{index}"))
@@ -60,7 +100,6 @@ impl CsvCache {
         let transaction = self.connection.transaction()?;
         let mut statement = transaction.prepare(&sql)?;
         let mut imported_rows = 0;
-
         for (record_index, record) in records.into_iter().enumerate() {
             let values = record?;
             if values.len() != column_count {
@@ -72,8 +111,10 @@ impl CsvCache {
             }
             statement.execute(rusqlite::params_from_iter(values))?;
             imported_rows += 1;
+            if imported_rows % PROGRESS_ROW_INTERVAL == 0 {
+                report_progress(imported_rows);
+            }
         }
-
         drop(statement);
         transaction.commit()?;
         Ok(imported_rows)
@@ -148,9 +189,13 @@ pub struct CsvColumnMetadata {
 /// An error that prevents a CSV cache import from completing.
 #[derive(Debug)]
 pub enum ImportError {
+    Io(std::io::Error),
+    Decode(DecodeError),
     Csv(CsvParseError),
     Database(rusqlite::Error),
     NoColumns,
+    NoRecords,
+    NoDelimiter,
     UnexpectedColumnCount {
         record: usize,
         expected: usize,
@@ -158,9 +203,44 @@ pub enum ImportError {
     },
 }
 
+impl fmt::Display for ImportError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(error) => write!(formatter, "Could not read the CSV file: {error}"),
+            Self::Decode(error) => write!(formatter, "Could not decode the CSV file: {error:?}"),
+            Self::Csv(error) => write!(formatter, "Could not parse the CSV file: {error:?}"),
+            Self::Database(error) => write!(formatter, "Could not create the local cache: {error}"),
+            Self::NoColumns => formatter.write_str("The CSV file has no columns."),
+            Self::NoRecords => formatter.write_str("The CSV file has no records."),
+            Self::NoDelimiter => {
+                formatter.write_str("Could not detect a delimiter; choose one manually.")
+            }
+            Self::UnexpectedColumnCount {
+                record,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "Record {record} has {actual} columns; expected {expected}."
+            ),
+        }
+    }
+}
+
 impl From<CsvParseError> for ImportError {
     fn from(error: CsvParseError) -> Self {
         Self::Csv(error)
+    }
+}
+
+impl From<std::io::Error> for ImportError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Io(error)
+    }
+}
+impl From<DecodeError> for ImportError {
+    fn from(error: DecodeError) -> Self {
+        Self::Decode(error)
     }
 }
 
@@ -785,6 +865,152 @@ fn most_common_width(widths: &[usize]) -> Option<(usize, usize)> {
     candidates.into_iter().max()
 }
 
+/// Imports a source file into its local cache and reports preview and lifecycle events.
+/// Preview events are delivered before the SQLite transaction commits, allowing the
+/// host to show rows while the cache is still being populated.
+pub fn import_source_file(
+    source_file: &Path,
+    mut report: impl FnMut(ImportEvent),
+) -> Result<(), ImportError> {
+    let bytes = fs::read(source_file)?;
+    let total_bytes = bytes.len() as u64;
+    report(ImportEvent::Started { total_bytes });
+    let input = TextEncodingSelection::Automatic.decode(&bytes)?;
+    let delimiter = DelimiterSelection::Automatic
+        .resolve(&input)
+        .ok_or(ImportError::NoDelimiter)?;
+    let mut records = CsvRecords::new(&input, delimiter);
+    let first = records.next().transpose()?.ok_or(ImportError::NoRecords)?;
+    let second = records.next().transpose()?;
+    let has_header = HeaderSelection::Automatic.resolve(&first, second.as_deref());
+    let headers = if has_header {
+        first.clone()
+    } else {
+        (0..first.len())
+            .map(|index| format!("column_{}", index + 1))
+            .collect()
+    };
+    if headers.is_empty() {
+        return Err(ImportError::NoColumns);
+    }
+    let mut data = Vec::new();
+    if !has_header {
+        data.push(first);
+    }
+    if let Some(record) = second {
+        data.push(record);
+    }
+    for record in records {
+        data.push(record?);
+    }
+    for (index, row) in data.iter().take(PREVIEW_ROW_LIMIT).enumerate() {
+        report(ImportEvent::Preview {
+            row: index + 1,
+            values: row.clone(),
+        });
+    }
+    let columns = headers.iter().enumerate().map(|(index, name)| CsvColumn {
+        source_name: name.clone(),
+        column_type: infer_column_type(
+            data.iter()
+                .filter_map(|row| row.get(index).map(String::as_str)),
+        ),
+    });
+    let mut cache = CsvCache::open_for_source(source_file)?;
+    cache.create_csv_table(columns)?;
+    let imported_rows = cache.import_records_with_progress(
+        "csv",
+        headers.len(),
+        data.into_iter().map(Ok),
+        |rows| {
+            report(ImportEvent::Progress {
+                imported_rows: rows,
+                total_bytes,
+            });
+        },
+    )?;
+    report(ImportEvent::Progress {
+        imported_rows,
+        total_bytes,
+    });
+    report(ImportEvent::Completed {
+        imported_rows,
+        cache_path: cache.path().to_owned(),
+    });
+    Ok(())
+}
+
+/// C-compatible import event. All string pointers are valid only for the callback.
+#[repr(C)]
+pub struct VirguleImportEvent {
+    kind: u32,
+    row: usize,
+    imported_rows: usize,
+    total_bytes: u64,
+    values: *const *const c_char,
+    value_count: usize,
+    message: *const c_char,
+}
+
+pub type VirguleImportCallback = unsafe extern "C" fn(*const VirguleImportEvent, *mut c_void);
+
+fn emit_ffi_event(callback: VirguleImportCallback, context: *mut c_void, event: ImportEvent) {
+    let (kind, row, imported_rows, total_bytes, values, message) = match event {
+        ImportEvent::Started { total_bytes } => (0, 0, 0, total_bytes, Vec::new(), String::new()),
+        ImportEvent::Preview { row, values } => (1, row, 0, 0, values, String::new()),
+        ImportEvent::Progress {
+            imported_rows,
+            total_bytes,
+        } => (2, 0, imported_rows, total_bytes, Vec::new(), String::new()),
+        ImportEvent::Completed {
+            imported_rows,
+            cache_path,
+        } => (
+            3,
+            0,
+            imported_rows,
+            0,
+            Vec::new(),
+            cache_path.display().to_string(),
+        ),
+    };
+    let values = values
+        .into_iter()
+        .map(|value| CString::new(value).unwrap_or_else(|_| CString::default()))
+        .collect::<Vec<_>>();
+    let pointers = values
+        .iter()
+        .map(|value| value.as_ptr())
+        .collect::<Vec<_>>();
+    let message = CString::new(message).expect("cache paths cannot contain NUL");
+    let ffi_event = VirguleImportEvent {
+        kind,
+        row,
+        imported_rows,
+        total_bytes,
+        values: pointers.as_ptr(),
+        value_count: pointers.len(),
+        message: message.as_ptr(),
+    };
+    // SAFETY: callback and context are supplied by the C host; all event storage lives for this call.
+    unsafe { callback(&ffi_event, context) };
+}
+
+fn emit_ffi_error(callback: VirguleImportCallback, context: *mut c_void, error: &ImportError) {
+    let message = CString::new(error.to_string()).unwrap_or_else(|_| CString::default());
+    let event = VirguleImportEvent {
+        kind: 4,
+        row: 0,
+        imported_rows: 0,
+        total_bytes: 0,
+        values: std::ptr::null(),
+        value_count: 0,
+        message: message.as_ptr(),
+    };
+    // SAFETY: callback and context are supplied by the C host; message lives for this call.
+    unsafe { callback(&event, context) };
+}
+
 /// Allocates a new engine instance for the Swift host.
 #[unsafe(no_mangle)]
 pub extern "C" fn virgule_engine_create() -> *mut VirguleEngine {
@@ -804,9 +1030,93 @@ pub unsafe extern "C" fn virgule_engine_destroy(engine: *mut VirguleEngine) {
     }
 }
 
+/// Imports a UTF-8 filesystem path, synchronously delivering lifecycle events to
+/// `callback`. The callback and its borrowed event data are never retained.
+///
+/// Returns `0` after a valid call (including an import error delivered as an
+/// event), or `-1` for invalid FFI arguments.
+///
+/// # Safety
+/// `engine` must be an engine returned by `virgule_engine_create`; `source_path`
+/// must be a NUL-terminated UTF-8 string; and `callback` must remain callable
+/// until this function returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn virgule_engine_import_csv(
+    engine: *mut VirguleEngine,
+    source_path: *const c_char,
+    callback: Option<VirguleImportCallback>,
+    context: *mut c_void,
+) -> i32 {
+    let Some(callback) = callback else {
+        return -1;
+    };
+    if engine.is_null() || source_path.is_null() {
+        return -1;
+    }
+    // SAFETY: required by this function's C contract.
+    let source_path = unsafe { CStr::from_ptr(source_path) };
+    let Ok(source_path) = source_path.to_str() else {
+        let error = ImportError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "The source path is not UTF-8.",
+        ));
+        emit_ffi_error(callback, context, &error);
+        return 0;
+    };
+    if let Err(error) = import_source_file(Path::new(source_path), |event| {
+        emit_ffi_event(callback, context, event)
+    }) {
+        emit_ffi_error(callback, context, &error);
+    }
+    0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn import_file_reports_preview_before_completion() {
+        let directory =
+            std::env::temp_dir().join(format!("virgule-engine-events-{}", std::process::id()));
+        fs::create_dir_all(&directory).expect("creates temporary directory");
+        let source = directory.join("people.csv");
+        let source_bytes = b"name,age\nAda,42\nLin,35\n";
+        fs::write(&source, source_bytes).expect("writes CSV fixture");
+        let mut events = Vec::new();
+
+        import_source_file(&source, |event| events.push(event)).expect("imports fixture");
+
+        assert!(
+            matches!(events.first(), Some(ImportEvent::Started { total_bytes }) if *total_bytes == source_bytes.len() as u64)
+        );
+        let preview_index = events
+            .iter()
+            .position(|event| matches!(event, ImportEvent::Preview { .. }))
+            .expect("reports preview");
+        let completion_index = events
+            .iter()
+            .position(|event| {
+                matches!(
+                    event,
+                    ImportEvent::Completed {
+                        imported_rows: 2,
+                        ..
+                    }
+                )
+            })
+            .expect("reports completion");
+        assert!(preview_index < completion_index);
+        assert!(events.iter().any(|event| matches!(event, ImportEvent::Preview { values, .. } if values == &vec!["Ada".to_owned(), "42".to_owned()])));
+        assert_eq!(
+            fs::read(&source).expect("rereads CSV fixture"),
+            source_bytes
+        );
+
+        fs::remove_file(cache_path_for(&source)).expect("removes cache fixture");
+        fs::remove_file(source).expect("removes CSV fixture");
+        fs::remove_dir(directory).expect("removes temporary directory");
+    }
 
     #[test]
     fn detects_each_supported_delimiter() {
