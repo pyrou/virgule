@@ -56,7 +56,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Create a native macOS window with a toolbar.
 - [x] Add a CSV file picker.
 - [x] Add CSV drag and drop.
-- [ ] Run imports off the main thread.
+- [x] Run imports off the main thread.
 - [ ] Show the first rows while the import continues.
 - [ ] Clearly display “Read-only — the source file is not modified.”
 - [ ] Display progress and actionable errors.

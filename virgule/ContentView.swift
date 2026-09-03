@@ -6,6 +6,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate {
     private let titleLabel = NSTextField(labelWithString: "Open a CSV file to begin")
     private let detailLabel = NSTextField(wrappingLabelWithString: "Choose a CSV file or drag one into this window.")
     private let openButton = NSButton(title: "Open CSV…", target: nil, action: nil)
+    private var currentImportID: UUID?
 
     deinit {
         virgule_engine_destroy(engine)
@@ -74,9 +75,54 @@ final class ContentViewController: NSViewController, NSToolbarDelegate {
             return
         }
 
-        titleLabel.stringValue = url.lastPathComponent
+        let importID = UUID()
+        currentImportID = importID
+        titleLabel.stringValue = "Importing \(url.lastPathComponent)…"
         detailLabel.stringValue = url.path
-        openButton.title = "Choose another CSV…"
+        openButton.isEnabled = false
+        startImporting(url, importID: importID)
+    }
+
+    private func startImporting(_ url: URL, importID: UUID) {
+        let context = Unmanaged.passRetained(ImportContext(controller: self, importID: importID))
+        DispatchQueue.global(qos: .userInitiated).async {
+            defer { context.release() }
+            _ = url.path.withCString { sourcePath in
+                virgule_engine_import_csv(
+                    self.engine,
+                    sourcePath,
+                    virguleImportCallback,
+                    context.toOpaque()
+                )
+            }
+        }
+    }
+
+    fileprivate func receiveImportEvent(_ event: ImportEventSnapshot, importID: UUID) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.currentImportID == importID else { return }
+
+            switch event.kind {
+            case VIRGULE_IMPORT_STARTED.rawValue:
+                self.detailLabel.stringValue = "Preparing import (\(event.totalBytes) bytes)…"
+            case VIRGULE_IMPORT_PREVIEW.rawValue:
+                self.detailLabel.stringValue = "Reading rows…"
+            case VIRGULE_IMPORT_PROGRESS.rawValue:
+                self.detailLabel.stringValue = "Imported \(event.importedRows) rows…"
+            case VIRGULE_IMPORT_COMPLETED.rawValue:
+                self.titleLabel.stringValue = "Imported \(event.importedRows) rows"
+                self.detailLabel.stringValue = "Local read-only cache: \(event.message)"
+                self.openButton.title = "Choose another CSV…"
+                self.openButton.isEnabled = true
+            case VIRGULE_IMPORT_ERROR.rawValue:
+                self.titleLabel.stringValue = "Could not import the CSV"
+                self.detailLabel.stringValue = event.message
+                self.openButton.title = "Try another CSV…"
+                self.openButton.isEnabled = true
+            default:
+                break
+            }
+        }
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -112,6 +158,36 @@ final class ContentViewController: NSViewController, NSToolbarDelegate {
     private static func isCSV(_ url: URL) -> Bool {
         ["csv", "tsv"].contains(url.pathExtension.lowercased())
     }
+}
+
+private final class ImportContext {
+    weak var controller: ContentViewController?
+    let importID: UUID
+
+    init(controller: ContentViewController, importID: UUID) {
+        self.controller = controller
+        self.importID = importID
+    }
+}
+
+private struct ImportEventSnapshot {
+    let kind: UInt32
+    let importedRows: Int
+    let totalBytes: UInt64
+    let message: String
+}
+
+private let virguleImportCallback: VirguleImportCallback = { event, context in
+    guard let event, let context else { return }
+    let importContext = Unmanaged<ImportContext>.fromOpaque(context).takeUnretainedValue()
+    let importedEvent = event.pointee
+    let snapshot = ImportEventSnapshot(
+        kind: importedEvent.kind,
+        importedRows: importedEvent.imported_rows,
+        totalBytes: importedEvent.total_bytes,
+        message: importedEvent.message.map { String(cString: $0) } ?? ""
+    )
+    importContext.controller?.receiveImportEvent(snapshot, importID: importContext.importID)
 }
 
 private extension NSToolbarItem.Identifier {
