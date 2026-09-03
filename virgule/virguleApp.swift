@@ -15,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         window.title = "Virgule"
         window.isRestorable = false
+        window.styleMask.insert(.fullSizeContentView)
+        window.titlebarAppearsTransparent = true
         window.contentViewController = controller
         let toolbar = NSToolbar(identifier: "com.fizzup.virgule.main-toolbar")
         toolbar.displayMode = .iconAndLabel

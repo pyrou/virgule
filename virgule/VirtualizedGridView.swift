@@ -79,7 +79,7 @@ final class VirtualizedGridView: NSView {
 
     private func configureViews() {
         wantsLayer = true
-        layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        layer?.backgroundColor = FinderGridPalette.background.cgColor
 
         headerMaterialView.material = .headerView
         headerMaterialView.blendingMode = .withinWindow
@@ -546,25 +546,32 @@ private final class VirtualizedGridHeaderDocumentView: NSView {
     }
 }
 
-private final class VirtualizedGridHeaderCellView: NSTextField {
+private final class VirtualizedGridHeaderCellView: NSView {
     private static let resizeHandleWidth: CGFloat = 8
+    private static let horizontalPadding: CGFloat = 14
+    private let label = NSTextField(labelWithString: "")
     var column = 0
     var resizeColumn: ((Int, CGFloat) -> Void)?
+    var stringValue: String {
+        get { label.stringValue }
+        set { label.stringValue = newValue }
+    }
 
     init() {
         super.init(frame: .zero)
-        cell = VirtualizedGridHeaderTextCell(textCell: "")
-        isEditable = false
-        isSelectable = false
-        isBordered = false
-        drawsBackground = false
-        font = .systemFont(ofSize: 12, weight: .semibold)
-        lineBreakMode = .byTruncatingTail
-        cell?.lineBreakMode = .byTruncatingTail
+        label.isSelectable = false
+        label.font = .systemFont(ofSize: 12, weight: .semibold)
+        label.lineBreakMode = .byTruncatingTail
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.horizontalPadding),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.horizontalPadding),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
         wantsLayer = true
         layer?.borderWidth = 0.5
         layer?.borderColor = NSColor.separatorColor.cgColor
-        translatesAutoresizingMaskIntoConstraints = true
     }
 
     required init?(coder: NSCoder) {
@@ -602,12 +609,6 @@ private final class VirtualizedGridHeaderCellView: NSTextField {
     }
 }
 
-private final class VirtualizedGridHeaderTextCell: NSTextFieldCell {
-    override func titleRect(forBounds rect: NSRect) -> NSRect {
-        super.titleRect(forBounds: rect).insetBy(dx: 12, dy: 0)
-    }
-}
-
 private final class VirtualizedGridRowView: NSView {
     private var activeCells: [Int: VirtualizedGridCellView] = [:]
     private var recycledCells: [VirtualizedGridCellView] = []
@@ -618,10 +619,7 @@ private final class VirtualizedGridRowView: NSView {
         super.draw(dirtyRect)
         guard let row = rowIndex else { return }
         guard row.isMultiple(of: 2) else { return }
-        let color = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            ? NSColor.white.withAlphaComponent(0.065)
-            : NSColor.black.withAlphaComponent(0.035)
-        color.setFill()
+        FinderGridPalette.alternateRow.setFill()
         NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 2), xRadius: 6, yRadius: 6).fill()
     }
 
@@ -676,18 +674,26 @@ private final class VirtualizedGridRowView: NSView {
     }
 }
 
-private final class VirtualizedGridCellView: NSTextField {
+private final class VirtualizedGridCellView: NSView {
+    private static let horizontalPadding: CGFloat = 14
+    private let label = NSTextField(labelWithString: "")
+    var stringValue: String {
+        get { label.stringValue }
+        set { label.stringValue = newValue }
+    }
+
     init() {
         super.init(frame: .zero)
-        isEditable = false
-        isSelectable = true
-        drawsBackground = false
-        isBordered = false
-        font = .systemFont(ofSize: 13, weight: .regular)
-        lineBreakMode = .byTruncatingTail
-        cell?.lineBreakMode = .byTruncatingTail
-        wantsLayer = true
-        translatesAutoresizingMaskIntoConstraints = true
+        label.isSelectable = true
+        label.font = .systemFont(ofSize: 13, weight: .regular)
+        label.lineBreakMode = .byTruncatingTail
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.horizontalPadding),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.horizontalPadding),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
     }
 
     required init?(coder: NSCoder) {
@@ -717,5 +723,19 @@ private final class VirtualizedGridHeaderFadeView: NSView {
             end: NSPoint(x: 0, y: bounds.height),
             options: []
         )
+    }
+}
+
+private enum FinderGridPalette {
+    static let background = NSColor(name: "FinderGridBackground") { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(calibratedRed: 0.125, green: 0.145, blue: 0.185, alpha: 1)
+            : NSColor.windowBackgroundColor
+    }
+
+    static let alternateRow = NSColor(name: "FinderGridAlternateRow") { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(calibratedRed: 0.16, green: 0.185, blue: 0.23, alpha: 1)
+            : NSColor.black.withAlphaComponent(0.035)
     }
 }

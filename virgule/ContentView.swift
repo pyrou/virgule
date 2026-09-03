@@ -26,6 +26,10 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
 
     override func loadView() {
         let dropView = FileDropView()
+        let windowHeaderMaterial = NSVisualEffectView()
+        windowHeaderMaterial.material = .headerView
+        windowHeaderMaterial.blendingMode = .withinWindow
+        windowHeaderMaterial.state = .active
         dropView.onFileDropped = { [weak self] url in
             self?.selectSourceFile(url)
         }
@@ -53,8 +57,10 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         controls.alignment = .centerX
         controls.spacing = 12
 
+        dropView.addSubview(windowHeaderMaterial)
         dropView.addSubview(controls)
         dropView.addSubview(gridView)
+        windowHeaderMaterial.translatesAutoresizingMaskIntoConstraints = false
         controls.translatesAutoresizingMaskIntoConstraints = false
         gridView.translatesAutoresizingMaskIntoConstraints = false
 
@@ -63,12 +69,16 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
             controls.centerYAnchor.constraint(equalTo: dropView.centerYAnchor),
         ]
         previewStateConstraints = [
-            gridView.topAnchor.constraint(equalTo: dropView.topAnchor),
+            gridView.topAnchor.constraint(equalTo: dropView.safeAreaLayoutGuide.topAnchor),
             gridView.leadingAnchor.constraint(equalTo: dropView.leadingAnchor),
             gridView.trailingAnchor.constraint(equalTo: dropView.trailingAnchor),
             gridView.bottomAnchor.constraint(equalTo: dropView.bottomAnchor),
         ]
         NSLayoutConstraint.activate([
+            windowHeaderMaterial.leadingAnchor.constraint(equalTo: dropView.leadingAnchor),
+            windowHeaderMaterial.trailingAnchor.constraint(equalTo: dropView.trailingAnchor),
+            windowHeaderMaterial.topAnchor.constraint(equalTo: dropView.topAnchor),
+            windowHeaderMaterial.bottomAnchor.constraint(equalTo: dropView.bottomAnchor),
             detailLabel.widthAnchor.constraint(lessThanOrEqualTo: dropView.widthAnchor, constant: -80),
             gridView.heightAnchor.constraint(greaterThanOrEqualToConstant: 220),
         ])
