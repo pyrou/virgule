@@ -36,8 +36,8 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Stream-parse quoted fields containing delimiters.
 - [x] Stream-parse quoted fields containing line breaks.
 - [x] Support escaped quotes.
-- [ ] Infer null, boolean, integer, decimal, date/datetime, and text.
-- [ ] Preserve text when inference is ambiguous.
+- [x] Infer null, boolean, integer, decimal, date/datetime, and text.
+- [x] Preserve text when inference is ambiguous.
 - [ ] Write the required Rust unit tests for a quoted comma and a quoted line break.
 
 ## 3. SQLite cache and query engine

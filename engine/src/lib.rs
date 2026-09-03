@@ -221,6 +221,127 @@ pub enum CsvParseError {
     UnexpectedCharacterAfterClosingQuote,
 }
 
+/// The storage type inferred from a complete CSV column.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ColumnType {
+    Null,
+    Boolean,
+    Integer,
+    Decimal,
+    Date,
+    DateTime,
+    Text,
+}
+
+/// Infers a column type without coercing ambiguous values.
+pub fn infer_column_type<'value>(values: impl IntoIterator<Item = &'value str>) -> ColumnType {
+    let mut inferred = ColumnType::Null;
+    for value in values {
+        let value_type = classify_value(value);
+        inferred = merge_column_types(inferred, value_type);
+        if inferred == ColumnType::Text {
+            return ColumnType::Text;
+        }
+    }
+    inferred
+}
+
+fn classify_value(value: &str) -> ColumnType {
+    if value.is_empty() {
+        ColumnType::Null
+    } else if matches!(value, "true" | "false") {
+        ColumnType::Boolean
+    } else if is_unambiguous_integer(value) {
+        ColumnType::Integer
+    } else if is_decimal(value) {
+        ColumnType::Decimal
+    } else if is_datetime(value) {
+        ColumnType::DateTime
+    } else if is_date(value) {
+        ColumnType::Date
+    } else {
+        ColumnType::Text
+    }
+}
+
+fn merge_column_types(current: ColumnType, next: ColumnType) -> ColumnType {
+    match (current, next) {
+        (ColumnType::Null, value) | (value, ColumnType::Null) => value,
+        (left, right) if left == right => left,
+        (ColumnType::Integer, ColumnType::Decimal) | (ColumnType::Decimal, ColumnType::Integer) => {
+            ColumnType::Decimal
+        }
+        (ColumnType::Date, ColumnType::DateTime) | (ColumnType::DateTime, ColumnType::Date) => {
+            ColumnType::DateTime
+        }
+        _ => ColumnType::Text,
+    }
+}
+
+fn is_unambiguous_integer(value: &str) -> bool {
+    let digits = value.strip_prefix('-').unwrap_or(value);
+    !digits.is_empty()
+        && (digits == "0" || !digits.starts_with('0'))
+        && value.parse::<i64>().is_ok()
+}
+
+fn is_decimal(value: &str) -> bool {
+    (value.contains('.') || value.contains('e') || value.contains('E'))
+        && value.parse::<f64>().is_ok_and(f64::is_finite)
+}
+
+fn is_date(value: &str) -> bool {
+    let Some((year, month, day)) = split_date(value) else {
+        return false;
+    };
+    if year.len() != 4
+        || !year.bytes().all(|byte| byte.is_ascii_digit())
+        || month.len() != 2
+        || day.len() != 2
+    {
+        return false;
+    }
+    let (Ok(year), Ok(month), Ok(day)) =
+        (year.parse::<u16>(), month.parse::<u8>(), day.parse::<u8>())
+    else {
+        return false;
+    };
+    day > 0 && day <= days_in_month(year, month)
+}
+
+fn days_in_month(year: u16, month: u8) -> u8 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if year % 400 == 0 || (year % 4 == 0 && year % 100 != 0) => 29,
+        2 => 28,
+        _ => 0,
+    }
+}
+
+fn is_datetime(value: &str) -> bool {
+    let Some((date, time)) = value.split_once('T').or_else(|| value.split_once(' ')) else {
+        return false;
+    };
+    let Some((hour, minute)) = time.split_once(':') else {
+        return false;
+    };
+    let Some(minute_prefix) = minute.get(..2) else {
+        return false;
+    };
+    is_date(date)
+        && hour.len() == 2
+        && minute.len() >= 2
+        && hour.parse::<u8>().is_ok_and(|hour| hour < 24)
+        && minute_prefix.parse::<u8>().is_ok_and(|minute| minute < 60)
+}
+
+fn split_date(value: &str) -> Option<(&str, &str, &str)> {
+    let mut components = value.split('-');
+    Some((components.next()?, components.next()?, components.next()?))
+        .filter(|_| components.next().is_none())
+}
+
 /// An iterator over CSV records that retains only the current record in memory.
 pub struct CsvRecords<'input> {
     input: &'input str,
@@ -598,6 +719,32 @@ mod tests {
                 vec!["Ada".to_owned(), "She said \"hello\"".to_owned()],
             ])
         );
+    }
+
+    #[test]
+    fn infers_null_boolean_integer_decimal_date_and_datetime_columns() {
+        assert_eq!(infer_column_type(["", ""]), ColumnType::Null);
+        assert_eq!(
+            infer_column_type(["true", "false", ""]),
+            ColumnType::Boolean
+        );
+        assert_eq!(infer_column_type(["42", "-7", ""]), ColumnType::Integer);
+        assert_eq!(infer_column_type(["42", "-7.5", ""]), ColumnType::Decimal);
+        assert_eq!(
+            infer_column_type(["2026-09-03", "2025-01-01"]),
+            ColumnType::Date
+        );
+        assert_eq!(
+            infer_column_type(["2026-09-03T12:30", "2025-01-01 00:00"]),
+            ColumnType::DateTime
+        );
+    }
+
+    #[test]
+    fn preserves_text_when_values_are_ambiguous_or_mixed() {
+        assert_eq!(infer_column_type(["00123", "00456"]), ColumnType::Text);
+        assert_eq!(infer_column_type(["true", "unknown"]), ColumnType::Text);
+        assert_eq!(infer_column_type(["42", "2026-09-03"]), ColumnType::Text);
     }
 
     #[test]
