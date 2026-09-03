@@ -60,7 +60,7 @@ final class VirtualizedGridView: NSView {
     /// Scrolls the document to a model row. Kept internal for deterministic
     /// AppKit verification that scrolling does not create off-screen views.
     func scrollToRow(_ row: Int) {
-        let y = max(0, CGFloat(row) * VirtualizedGridDocumentView.rowHeight)
+        let y = max(0, Self.headerHeight + CGFloat(row) * VirtualizedGridDocumentView.rowHeight)
         scrollView.contentView.scroll(to: NSPoint(x: scrollView.contentView.bounds.minX, y: y))
         scrollView.reflectScrolledClipView(scrollView.contentView)
         refreshVisibleViews()
@@ -107,10 +107,10 @@ final class VirtualizedGridView: NSView {
         documentView.grid = self
         documentView.columnLayout = columnLayout
 
-        addSubview(headerMaterialView)
-        addSubview(rowNumberHeaderView)
         addSubview(rowNumberClipView)
         addSubview(scrollView)
+        addSubview(headerMaterialView)
+        addSubview(rowNumberHeaderView)
         addSubview(headerClipView)
         addSubview(headerFadeView)
         boundsObserver = NotificationCenter.default.addObserver(
@@ -134,9 +134,9 @@ final class VirtualizedGridView: NSView {
         rowNumberHeaderView.frame = NSRect(x: 0, y: 0, width: Self.rowNumberWidth, height: Self.headerHeight)
         rowNumberClipView.frame = NSRect(
             x: 0,
-            y: Self.headerHeight,
+            y: 0,
             width: Self.rowNumberWidth,
-            height: max(0, bounds.height - Self.headerHeight)
+            height: bounds.height
         )
         headerClipView.frame = NSRect(
             x: Self.rowNumberWidth,
@@ -152,9 +152,9 @@ final class VirtualizedGridView: NSView {
         )
         scrollView.frame = NSRect(
             x: Self.rowNumberWidth,
-            y: Self.headerHeight,
+            y: 0,
             width: max(0, bounds.width - Self.rowNumberWidth),
-            height: max(0, bounds.height - Self.headerHeight)
+            height: bounds.height
         )
         updateDocumentMetrics()
     }
@@ -282,6 +282,7 @@ private final class VirtualizedGridColumnLayout {
 
 private final class VirtualizedGridDocumentView: NSView {
     static let rowHeight: CGFloat = 28
+    static let headerInset: CGFloat = 30
 
     private var rowCount = 0
     private var columnCount = 0
@@ -308,7 +309,7 @@ private final class VirtualizedGridDocumentView: NSView {
             x: 0,
             y: 0,
             width: contentWidth,
-            height: CGFloat(rowCount) * Self.rowHeight
+            height: Self.headerInset + CGFloat(rowCount) * Self.rowHeight
         )
         refreshVisibleViews()
     }
@@ -345,7 +346,7 @@ private final class VirtualizedGridDocumentView: NSView {
 
             rowView.frame = NSRect(
                 x: 0,
-                y: CGFloat(row) * Self.rowHeight,
+                y: Self.headerInset + CGFloat(row) * Self.rowHeight,
                 width: bounds.width,
                 height: Self.rowHeight
             )
@@ -362,8 +363,8 @@ private final class VirtualizedGridDocumentView: NSView {
 
     private func visibleRowRange() -> Range<Int> {
         guard rowCount > 0, visibleRect.height > 0 else { return 0 ..< 0 }
-        let lower = max(0, Int(floor(visibleRect.minY / Self.rowHeight)))
-        let upper = min(rowCount, Int(ceil(visibleRect.maxY / Self.rowHeight)))
+        let lower = max(0, Int(floor((visibleRect.minY - Self.headerInset) / Self.rowHeight)))
+        let upper = min(rowCount, Int(ceil((visibleRect.maxY - Self.headerInset) / Self.rowHeight)))
         return lower ..< max(lower, upper)
     }
 
@@ -378,6 +379,7 @@ private final class VirtualizedGridDocumentView: NSView {
 /// viewport and virtualizes labels with the same geometry as data rows.
 private final class VirtualizedGridRowNumberDocumentView: NSView {
     private static let rowHeight: CGFloat = 28
+    private static let headerInset: CGFloat = 30
 
     private var rowCount = 0
     private var activeLabels: [Int: VirtualizedGridRowNumberView] = [:]
@@ -419,15 +421,20 @@ private final class VirtualizedGridRowNumberDocumentView: NSView {
                 addSubview(label)
             }
 
-            label.frame = NSRect(x: 0, y: CGFloat(row) * Self.rowHeight, width: bounds.width, height: Self.rowHeight)
+            label.frame = NSRect(
+                x: 0,
+                y: Self.headerInset + CGFloat(row) * Self.rowHeight,
+                width: bounds.width,
+                height: Self.rowHeight
+            )
             label.stringValue = String(grid?.rowNumber(forRow: row) ?? (row + 1))
         }
     }
 
     private func visibleRowRange() -> Range<Int> {
         guard rowCount > 0, visibleRect.height > 0 else { return 0 ..< 0 }
-        let lower = max(0, Int(floor(visibleRect.minY / Self.rowHeight)))
-        let upper = min(rowCount, Int(ceil(visibleRect.maxY / Self.rowHeight)))
+        let lower = max(0, Int(floor((visibleRect.minY - Self.headerInset) / Self.rowHeight)))
+        let upper = min(rowCount, Int(ceil((visibleRect.maxY - Self.headerInset) / Self.rowHeight)))
         return lower ..< max(lower, upper)
     }
 }
@@ -546,6 +553,7 @@ private final class VirtualizedGridHeaderCellView: NSTextField {
 
     init() {
         super.init(frame: .zero)
+        cell = VirtualizedGridHeaderTextCell(textCell: "")
         isEditable = false
         isSelectable = false
         isBordered = false
@@ -594,6 +602,12 @@ private final class VirtualizedGridHeaderCellView: NSTextField {
     }
 }
 
+private final class VirtualizedGridHeaderTextCell: NSTextFieldCell {
+    override func titleRect(forBounds rect: NSRect) -> NSRect {
+        super.titleRect(forBounds: rect).insetBy(dx: 12, dy: 0)
+    }
+}
+
 private final class VirtualizedGridRowView: NSView {
     private var activeCells: [Int: VirtualizedGridCellView] = [:]
     private var recycledCells: [VirtualizedGridCellView] = []
@@ -603,9 +617,10 @@ private final class VirtualizedGridRowView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard let row = rowIndex else { return }
-        let color = row.isMultiple(of: 2)
-            ? NSColor.controlBackgroundColor.withAlphaComponent(0.42)
-            : NSColor.clear
+        guard row.isMultiple(of: 2) else { return }
+        let color = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor.white.withAlphaComponent(0.065)
+            : NSColor.black.withAlphaComponent(0.035)
         color.setFill()
         NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 2), xRadius: 6, yRadius: 6).fill()
     }
