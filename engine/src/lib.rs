@@ -3,12 +3,12 @@
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
-use rusqlite::Connection;
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
 use rusqlite::types::ValueRef;
+use rusqlite::Connection;
 
 /// Opaque state: its layout is intentionally private to Rust.
 pub struct VirguleEngine {
@@ -22,7 +22,7 @@ const INTERNAL_ROW_ID: &str = "__virgule_row_id";
 
 mod importer;
 
-pub use importer::{ImportEvent, import_source_file};
+pub use importer::{import_source_file, ImportEvent};
 
 /// A local SQLite cache that is distinct from its read-only CSV source file.
 pub struct CsvCache {
@@ -148,12 +148,10 @@ impl CsvCache {
             .map(|name| quote_identifier(name))
             .collect::<Vec<_>>()
             .join(", ");
-        let mut statement = self
-            .connection
-            .prepare(&format!(
-                "SELECT {key}, {selected_columns} FROM csv ORDER BY {key} LIMIT ?1 OFFSET ?2",
-                key = quote_identifier(INTERNAL_ROW_ID),
-            ))?;
+        let mut statement = self.connection.prepare(&format!(
+            "SELECT {key}, {selected_columns} FROM csv ORDER BY {key} LIMIT ?1 OFFSET ?2",
+            key = quote_identifier(INTERNAL_ROW_ID),
+        ))?;
         let column_count = statement.column_count();
         let rows = statement
             .query_map((limit, offset), |row| {
@@ -172,25 +170,70 @@ impl CsvCache {
     /// virtualized even for a very large filtered result.
     pub fn describe_query(&self, sql: &str) -> Result<QueryDescription, SqlValidationError> {
         self.validate_query(sql)?;
-        let statement = self.connection.prepare(sql).map_err(SqlValidationError::Invalid)?;
-        let column_names = statement.column_names().iter().map(ToString::to_string).collect();
-        let count_sql = format!("SELECT COUNT(*) FROM ({})", sql.trim_end_matches(';'));
-        let row_count = self.connection.query_row(&count_sql, [], |row| row.get(0))
+        let statement = self
+            .connection
+            .prepare(sql)
             .map_err(SqlValidationError::Invalid)?;
-        Ok(QueryDescription { column_names, row_count })
+        // `__virgule_row_id` is implementation metadata. It can be returned
+        // by a user-written `SELECT *`, but the AppKit grid presents it in the
+        // dedicated `#` column instead of duplicating it as CSV data.
+        let column_names = statement
+            .column_names()
+            .iter()
+            .filter(|name| !name.eq_ignore_ascii_case(INTERNAL_ROW_ID))
+            .map(ToString::to_string)
+            .collect();
+        let count_sql = format!("SELECT COUNT(*) FROM ({})", sql.trim_end_matches(';'));
+        let row_count = self
+            .connection
+            .query_row(&count_sql, [], |row| row.get(0))
+            .map_err(SqlValidationError::Invalid)?;
+        Ok(QueryDescription {
+            column_names,
+            row_count,
+        })
     }
 
     /// Executes only one result page of a previously described user query.
-    pub fn read_query_page(&self, sql: &str, offset: usize, limit: usize) -> rusqlite::Result<CsvPage> {
-        let paged_sql = format!("SELECT * FROM ({}) LIMIT ?1 OFFSET ?2", sql.trim_end_matches(';'));
+    pub fn read_query_page(
+        &self,
+        sql: &str,
+        offset: usize,
+        limit: usize,
+    ) -> rusqlite::Result<CsvPage> {
+        let paged_sql = format!(
+            "SELECT * FROM ({}) LIMIT ?1 OFFSET ?2",
+            sql.trim_end_matches(';')
+        );
         let mut statement = self.connection.prepare(&paged_sql)?;
         let column_count = statement.column_count();
-        let rows = statement.query_map((limit, offset), |row| {
-            let values = (0..column_count)
+        // A query that explicitly returns the engine-owned key can retain its
+        // stable source row number in the grid's `#` column. Other queries
+        // use their result position, which is the only identity available for
+        // arbitrary expressions, joins, and aggregates.
+        let source_row_column = statement
+            .column_names()
+            .iter()
+            .position(|name| name.eq_ignore_ascii_case(INTERNAL_ROW_ID));
+        let value_columns = (0..column_count)
+            .filter(|column| Some(*column) != source_row_column)
+            .collect::<Vec<_>>();
+        let mut statement_rows = statement.query((limit, offset))?;
+        let mut rows = Vec::new();
+        let mut result_row = offset;
+        while let Some(row) = statement_rows.next()? {
+            let values = value_columns
+                .iter()
+                .copied()
                 .map(|index| sqlite_value_to_string(row.get_ref(index)?))
                 .collect::<rusqlite::Result<Vec<_>>>()?;
-            Ok(CsvPageRow { source_row: (offset + 1) as i64, values })
-        }).and_then(Iterator::collect)?;
+            let source_row = match source_row_column {
+                Some(column) => row.get(column)?,
+                None => (result_row + 1) as i64,
+            };
+            rows.push(CsvPageRow { source_row, values });
+            result_row += 1;
+        }
         Ok(CsvPage { offset, rows })
     }
 
@@ -266,7 +309,9 @@ impl CsvCache {
             .collect::<Vec<_>>()
             .join(", ");
         let sql = match column_list {
-            Some(column_list) => format!("INSERT INTO {table_name} ({column_list}) VALUES ({placeholders})"),
+            Some(column_list) => {
+                format!("INSERT INTO {table_name} ({column_list}) VALUES ({placeholders})")
+            }
             None => format!("INSERT INTO {table_name} VALUES ({placeholders})"),
         };
         let transaction = self.connection.transaction()?;
@@ -1138,9 +1183,9 @@ fn most_common_width(widths: &[usize]) -> Option<(usize, usize)> {
 mod ffi;
 
 pub use ffi::{
-    VirguleImportCallback, VirguleImportEvent, VirgulePageCallback, VirgulePageRow,
     virgule_engine_create, virgule_engine_destroy, virgule_engine_import_csv,
-    virgule_engine_read_csv_page,
+    virgule_engine_read_csv_page, VirguleImportCallback, VirguleImportEvent, VirgulePageCallback,
+    VirgulePageRow,
 };
 #[cfg(test)]
 #[path = "tests.rs"]

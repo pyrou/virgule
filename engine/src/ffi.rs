@@ -1,13 +1,13 @@
 //! C ABI boundary for the native macOS host.
 
-use std::ffi::{CStr, CString, c_void};
+use std::ffi::{c_void, CStr, CString};
 use std::fmt;
 use std::os::raw::c_char;
 use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
 
-use crate::{CsvCache, ImportError, ImportEvent, VirguleEngine, import_source_file};
+use crate::{import_source_file, CsvCache, ImportError, ImportEvent, VirguleEngine};
 
 /// C-compatible import event. All string pointers are valid only for the callback.
 #[repr(C)]
@@ -94,11 +94,30 @@ fn emit_ffi_error(callback: VirguleImportCallback, context: *mut c_void, error: 
     unsafe { callback(&event, context) };
 }
 
-fn emit_ffi_query_description(callback: VirguleImportCallback, context: *mut c_void, columns: Vec<String>, row_count: usize) {
-    let values = columns.into_iter().map(|value| CString::new(value).unwrap_or_default()).collect::<Vec<_>>();
-    let pointers = values.iter().map(|value| value.as_ptr()).collect::<Vec<_>>();
+fn emit_ffi_query_description(
+    callback: VirguleImportCallback,
+    context: *mut c_void,
+    columns: Vec<String>,
+    row_count: usize,
+) {
+    let values = columns
+        .into_iter()
+        .map(|value| CString::new(value).unwrap_or_default())
+        .collect::<Vec<_>>();
+    let pointers = values
+        .iter()
+        .map(|value| value.as_ptr())
+        .collect::<Vec<_>>();
     let message = CString::default();
-    let event = VirguleImportEvent { kind: 5, row: 0, imported_rows: row_count, total_bytes: 0, values: pointers.as_ptr(), value_count: pointers.len(), message: message.as_ptr() };
+    let event = VirguleImportEvent {
+        kind: 5,
+        row: 0,
+        imported_rows: row_count,
+        total_bytes: 0,
+        values: pointers.as_ptr(),
+        value_count: pointers.len(),
+        message: message.as_ptr(),
+    };
     // SAFETY: callback and all borrowed event data are valid for this call.
     unsafe { callback(&event, context) };
 }
@@ -263,39 +282,129 @@ pub unsafe extern "C" fn virgule_engine_read_csv_page(
 }
 
 fn ffi_string(value: *const c_char) -> Result<String, &'static str> {
-    if value.is_null() { return Err("A required query argument is missing."); }
-    unsafe { CStr::from_ptr(value) }.to_str().map(str::to_owned).map_err(|_| "A query argument is not UTF-8.")
+    if value.is_null() {
+        return Err("A required query argument is missing.");
+    }
+    unsafe { CStr::from_ptr(value) }
+        .to_str()
+        .map(str::to_owned)
+        .map_err(|_| "A query argument is not UTF-8.")
 }
 
 /// Validates a query and returns its result schema and count through the
 /// existing import-style callback, avoiding an ABI-only allocation type.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn virgule_engine_describe_query(engine: *mut VirguleEngine, cache_path: *const c_char, sql: *const c_char, callback: Option<VirguleImportCallback>, context: *mut c_void) -> i32 {
-    let Some(callback) = callback else { return -1; };
-    if engine.is_null() { return -1; }
-    let (Ok(cache_path), Ok(sql)) = (ffi_string(cache_path), ffi_string(sql)) else { emit_ffi_error(callback, context, &ImportError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid query arguments."))); return 0; };
-    let connection = match Connection::open(&cache_path) { Ok(value) => value, Err(error) => { emit_ffi_error(callback, context, &ImportError::Io(std::io::Error::other(error))); return 0; } };
-    let cache = CsvCache { connection, path: PathBuf::from(&cache_path) };
+pub unsafe extern "C" fn virgule_engine_describe_query(
+    engine: *mut VirguleEngine,
+    cache_path: *const c_char,
+    sql: *const c_char,
+    callback: Option<VirguleImportCallback>,
+    context: *mut c_void,
+) -> i32 {
+    let Some(callback) = callback else {
+        return -1;
+    };
+    if engine.is_null() {
+        return -1;
+    }
+    let (Ok(cache_path), Ok(sql)) = (ffi_string(cache_path), ffi_string(sql)) else {
+        emit_ffi_error(
+            callback,
+            context,
+            &ImportError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Invalid query arguments.",
+            )),
+        );
+        return 0;
+    };
+    let connection = match Connection::open(&cache_path) {
+        Ok(value) => value,
+        Err(error) => {
+            emit_ffi_error(
+                callback,
+                context,
+                &ImportError::Io(std::io::Error::other(error)),
+            );
+            return 0;
+        }
+    };
+    let cache = CsvCache {
+        connection,
+        path: PathBuf::from(&cache_path),
+    };
     match cache.describe_query(&sql) {
-        Ok(description) => emit_ffi_query_description(callback, context, description.column_names, description.row_count),
-        Err(error) => emit_ffi_error(callback, context, &ImportError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, error))),
+        Ok(description) => emit_ffi_query_description(
+            callback,
+            context,
+            description.column_names,
+            description.row_count,
+        ),
+        Err(error) => emit_ffi_error(
+            callback,
+            context,
+            &ImportError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, error)),
+        ),
     }
     0
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn virgule_engine_read_query_page(engine: *mut VirguleEngine, cache_path: *const c_char, sql: *const c_char, offset: usize, limit: usize, callback: Option<VirgulePageCallback>, context: *mut c_void) -> i32 {
-    let Some(callback) = callback else { return -1; };
-    if engine.is_null() || limit == 0 { return -1; }
-    let (Ok(cache_path), Ok(sql)) = (ffi_string(cache_path), ffi_string(sql)) else { emit_ffi_page_error(callback, context, "Invalid query arguments."); return 0; };
-    let connection = match Connection::open(&cache_path) { Ok(value) => value, Err(error) => { emit_ffi_page_error(callback, context, error); return 0; } };
-    let cache = CsvCache { connection, path: PathBuf::from(&cache_path) };
-    let page = match cache.read_query_page(&sql, offset, limit) { Ok(value) => value, Err(error) => { emit_ffi_page_error(callback, context, error); return 0; } };
+pub unsafe extern "C" fn virgule_engine_read_query_page(
+    engine: *mut VirguleEngine,
+    cache_path: *const c_char,
+    sql: *const c_char,
+    offset: usize,
+    limit: usize,
+    callback: Option<VirgulePageCallback>,
+    context: *mut c_void,
+) -> i32 {
+    let Some(callback) = callback else {
+        return -1;
+    };
+    if engine.is_null() || limit == 0 {
+        return -1;
+    }
+    let (Ok(cache_path), Ok(sql)) = (ffi_string(cache_path), ffi_string(sql)) else {
+        emit_ffi_page_error(callback, context, "Invalid query arguments.");
+        return 0;
+    };
+    let connection = match Connection::open(&cache_path) {
+        Ok(value) => value,
+        Err(error) => {
+            emit_ffi_page_error(callback, context, error);
+            return 0;
+        }
+    };
+    let cache = CsvCache {
+        connection,
+        path: PathBuf::from(&cache_path),
+    };
+    let page = match cache.read_query_page(&sql, offset, limit) {
+        Ok(value) => value,
+        Err(error) => {
+            emit_ffi_page_error(callback, context, error);
+            return 0;
+        }
+    };
     for (index, row) in page.rows.into_iter().enumerate() {
-        let values = row.values.into_iter().map(|value| CString::new(value).unwrap_or_default()).collect::<Vec<_>>();
-        let pointers = values.iter().map(|value| value.as_ptr()).collect::<Vec<_>>();
+        let values = row
+            .values
+            .into_iter()
+            .map(|value| CString::new(value).unwrap_or_default())
+            .collect::<Vec<_>>();
+        let pointers = values
+            .iter()
+            .map(|value| value.as_ptr())
+            .collect::<Vec<_>>();
         let message = CString::default();
-        let event = VirgulePageRow { result_row: page.offset + index, source_row: row.source_row, values: pointers.as_ptr(), value_count: pointers.len(), message: message.as_ptr() };
+        let event = VirgulePageRow {
+            result_row: page.offset + index,
+            source_row: row.source_row,
+            values: pointers.as_ptr(),
+            value_count: pointers.len(),
+            message: message.as_ptr(),
+        };
         unsafe { callback(&event, context) };
     }
     0

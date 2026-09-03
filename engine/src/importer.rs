@@ -4,8 +4,8 @@ use std::fs;
 use std::path::Path;
 
 use crate::{
-    CsvCache, CsvColumn, CsvRecords, DelimiterSelection, HeaderSelection, ImportError,
-    TextEncodingSelection, infer_column_type,
+    infer_column_type, CsvCache, CsvColumn, CsvRecords, DelimiterSelection, HeaderSelection,
+    ImportError, TextEncodingSelection,
 };
 
 const PREVIEW_ROW_LIMIT: usize = 20;

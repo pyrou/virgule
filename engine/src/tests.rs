@@ -67,8 +67,7 @@ fn import_reports_unique_column_labels_for_duplicate_csv_headers() {
     ));
     fs::create_dir_all(&directory).expect("creates fixture directory");
     let source = directory.join("duplicates.csv");
-    fs::write(&source, b"name,name,name_2\nAda,1,2\n")
-        .expect("writes CSV fixture");
+    fs::write(&source, b"name,name,name_2\nAda,1,2\n").expect("writes CSV fixture");
     let cache_directory = directory.join("cache");
     let mut events = Vec::new();
 
@@ -261,13 +260,11 @@ fn reads_only_the_requested_csv_page_with_stable_row_numbers() {
             ],
         }
     );
-    assert!(
-        cache
-            .read_csv_page(4, 2)
-            .expect("reads final page")
-            .rows
-            .is_empty()
-    );
+    assert!(cache
+        .read_csv_page(4, 2)
+        .expect("reads final page")
+        .rows
+        .is_empty());
 }
 
 #[test]
@@ -381,15 +378,89 @@ fn describes_and_pages_a_read_only_query() {
     let connection = Connection::open_in_memory().expect("opens cache");
     connection.execute_batch("CREATE TABLE csv (name TEXT, age INTEGER); INSERT INTO csv VALUES ('Ada', 42), ('Lin', 35), ('Maya', 29)")
         .expect("creates fixture");
-    let cache = CsvCache { connection, path: PathBuf::from(":memory:") };
+    let cache = CsvCache {
+        connection,
+        path: PathBuf::from(":memory:"),
+    };
     let sql = "SELECT name AS person FROM csv WHERE age >= 35 ORDER BY age DESC";
 
-    assert_eq!(cache.describe_query(sql).expect("describes query"), QueryDescription {
-        column_names: vec!["person".to_owned()], row_count: 2,
-    });
-    assert_eq!(cache.read_query_page(sql, 1, 1).expect("reads query page").rows, vec![CsvPageRow {
-        source_row: 2, values: vec!["Lin".to_owned()],
-    }]);
+    assert_eq!(
+        cache.describe_query(sql).expect("describes query"),
+        QueryDescription {
+            column_names: vec!["person".to_owned()],
+            row_count: 2,
+        }
+    );
+    assert_eq!(
+        cache
+            .read_query_page(sql, 1, 1)
+            .expect("reads query page")
+            .rows,
+        vec![CsvPageRow {
+            source_row: 2,
+            values: vec!["Lin".to_owned()],
+        }]
+    );
+
+    assert_eq!(
+        cache
+            .read_query_page(sql, 0, 2)
+            .expect("reads first query page")
+            .rows,
+        vec![
+            CsvPageRow {
+                source_row: 1,
+                values: vec!["Ada".to_owned()]
+            },
+            CsvPageRow {
+                source_row: 2,
+                values: vec!["Lin".to_owned()]
+            },
+        ]
+    );
+}
+
+#[test]
+fn query_page_uses_the_returned_internal_row_id() {
+    let connection = Connection::open_in_memory().expect("opens cache");
+    connection
+        .execute_batch(
+            "CREATE TABLE csv (\"__virgule_row_id\" INTEGER PRIMARY KEY, name TEXT); \
+         INSERT INTO csv VALUES (1, 'Ada'), (2, 'Lin'), (3, 'Maya')",
+        )
+        .expect("creates fixture");
+    let cache = CsvCache {
+        connection,
+        path: PathBuf::from(":memory:"),
+    };
+
+    assert_eq!(
+        cache
+            .read_query_page("SELECT * FROM csv ORDER BY \"__virgule_row_id\" DESC", 0, 3)
+            .expect("reads query page")
+            .rows,
+        vec![
+            CsvPageRow {
+                source_row: 3,
+                values: vec!["Maya".to_owned()]
+            },
+            CsvPageRow {
+                source_row: 2,
+                values: vec!["Lin".to_owned()]
+            },
+            CsvPageRow {
+                source_row: 1,
+                values: vec!["Ada".to_owned()]
+            },
+        ]
+    );
+    assert_eq!(
+        cache
+            .describe_query("SELECT * FROM csv")
+            .expect("describes query")
+            .column_names,
+        vec!["name".to_owned()]
+    );
 }
 
 #[test]
