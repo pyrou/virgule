@@ -5,8 +5,11 @@ use std::fmt;
 use std::fs;
 use std::os::raw::c_char;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use rusqlite::Connection;
+use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
 use rusqlite::types::ValueRef;
 
 /// Opaque state: its layout is intentionally private to Rust.
@@ -57,6 +60,31 @@ pub struct CsvPage {
     pub rows: Vec<CsvPageRow>,
 }
 
+/// Why a SQL statement cannot be run against the read-only CSV cache.
+#[derive(Debug)]
+pub enum SqlValidationError {
+    Empty,
+    UnsupportedStatement { keyword: String },
+    WriteOperation,
+    Invalid(rusqlite::Error),
+}
+
+impl fmt::Display for SqlValidationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Empty => formatter.write_str("Enter a SQL query."),
+            Self::UnsupportedStatement { keyword } => write!(
+                formatter,
+                "Only SELECT, WITH, and EXPLAIN queries are allowed (found {keyword})."
+            ),
+            Self::WriteOperation => formatter.write_str("Queries must not modify the local cache."),
+            Self::Invalid(error) => write!(formatter, "Invalid SQL query: {error}"),
+        }
+    }
+}
+
+impl std::error::Error for SqlValidationError {}
+
 impl CsvCache {
     /// Creates or opens the cache associated with `source_file`.
     pub fn open_for_source(source_file: &Path) -> rusqlite::Result<Self> {
@@ -73,6 +101,42 @@ impl CsvCache {
     /// Provides the cache connection to the importer and query engine.
     pub fn connection(&self) -> &Connection {
         &self.connection
+    }
+
+    /// Validates one read-only SQLite query without executing it.
+    ///
+    /// The leading keyword is constrained for a predictable query-bar contract,
+    /// while SQLite's authorizer rejects writes hidden inside common table
+    /// expressions or an EXPLAIN statement.
+    pub fn validate_query(&self, sql: &str) -> Result<(), SqlValidationError> {
+        let keyword = first_sql_keyword(sql).ok_or(SqlValidationError::Empty)?;
+        if !matches!(keyword.as_str(), "SELECT" | "WITH" | "EXPLAIN") {
+            return Err(SqlValidationError::UnsupportedStatement { keyword });
+        }
+
+        let write_was_requested = Arc::new(AtomicBool::new(false));
+        let authorizer_flag = Arc::clone(&write_was_requested);
+        self.connection
+            .authorizer(Some(move |context: AuthContext<'_>| {
+                if is_read_only_action(context.action) {
+                    Authorization::Allow
+                } else {
+                    authorizer_flag.store(true, Ordering::Relaxed);
+                    Authorization::Deny
+                }
+            }));
+        let validation = match self.connection.prepare(sql) {
+            Ok(statement) if statement.readonly() => Ok(()),
+            Ok(_) => Err(SqlValidationError::WriteOperation),
+            Err(error) => Err(SqlValidationError::Invalid(error)),
+        };
+        self.connection
+            .authorizer(None::<fn(AuthContext<'_>) -> Authorization>);
+
+        if write_was_requested.load(Ordering::Relaxed) {
+            return Err(SqlValidationError::WriteOperation);
+        }
+        validation
     }
 
     /// Loads exactly one bounded page from `csv`, never materializing the full
@@ -202,6 +266,39 @@ impl CsvCache {
         transaction.commit()?;
         Ok(metadata)
     }
+}
+
+fn first_sql_keyword(sql: &str) -> Option<String> {
+    let mut remaining = sql;
+    loop {
+        remaining = remaining.trim_start();
+        if let Some(comment) = remaining.strip_prefix("--") {
+            remaining = comment.find('\n').map_or("", |end| &comment[end + 1..]);
+            continue;
+        }
+        if let Some(comment) = remaining.strip_prefix("/*") {
+            let end = comment.find("*/")?;
+            remaining = &comment[end + 2..];
+            continue;
+        }
+        break;
+    }
+
+    let keyword = remaining
+        .chars()
+        .take_while(|character| character.is_ascii_alphabetic())
+        .collect::<String>();
+    (!keyword.is_empty()).then(|| keyword.to_ascii_uppercase())
+}
+
+fn is_read_only_action(action: AuthAction<'_>) -> bool {
+    matches!(
+        action,
+        AuthAction::Read { .. }
+            | AuthAction::Select
+            | AuthAction::Function { .. }
+            | AuthAction::Recursive
+    )
 }
 
 fn sqlite_value_to_string(value: ValueRef<'_>) -> rusqlite::Result<String> {
@@ -1354,6 +1451,61 @@ mod tests {
                 .rows
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn validates_read_only_select_with_and_explain_queries() {
+        let connection = Connection::open_in_memory().expect("opens in-memory cache");
+        connection
+            .execute_batch("CREATE TABLE csv (name TEXT); INSERT INTO csv VALUES ('Ada')")
+            .expect("creates CSV fixture");
+        let cache = CsvCache {
+            connection,
+            path: PathBuf::from(":memory:"),
+        };
+
+        for sql in [
+            "SELECT name FROM csv",
+            "-- a saved query\nWITH people AS (SELECT name FROM csv) SELECT * FROM people",
+            "EXPLAIN QUERY PLAN SELECT name FROM csv",
+        ] {
+            assert!(cache.validate_query(sql).is_ok(), "should accept: {sql}");
+        }
+    }
+
+    #[test]
+    fn rejects_write_and_non_query_sql() {
+        let connection = Connection::open_in_memory().expect("opens in-memory cache");
+        connection
+            .execute_batch("CREATE TABLE csv (name TEXT)")
+            .expect("creates CSV fixture");
+        let cache = CsvCache {
+            connection,
+            path: PathBuf::from(":memory:"),
+        };
+
+        for sql in [
+            "INSERT INTO csv VALUES ('Ada')",
+            "UPDATE csv SET name = 'Lin'",
+            "DELETE FROM csv",
+            "DROP TABLE csv",
+            "ATTACH DATABASE ':memory:' AS other",
+            "CREATE TABLE temporary_table (value TEXT)",
+            "EXPLAIN UPDATE csv SET name = 'Maya'",
+        ] {
+            assert!(
+                matches!(
+                    cache.validate_query(sql),
+                    Err(SqlValidationError::WriteOperation)
+                        | Err(SqlValidationError::UnsupportedStatement { .. })
+                ),
+                "should reject: {sql}"
+            );
+        }
+        assert!(matches!(
+            cache.validate_query("SELECT * FROM csv; DELETE FROM csv"),
+            Err(SqlValidationError::Invalid(_)) | Err(SqlValidationError::WriteOperation)
+        ));
     }
 
     #[test]
