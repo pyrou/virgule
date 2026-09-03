@@ -60,6 +60,34 @@ fn import_file_reports_preview_before_completion() {
 }
 
 #[test]
+fn import_reports_unique_column_labels_for_duplicate_csv_headers() {
+    let directory = std::env::temp_dir().join(format!(
+        "virgule-engine-duplicate-headers-{}",
+        std::process::id()
+    ));
+    fs::create_dir_all(&directory).expect("creates fixture directory");
+    let source = directory.join("duplicates.csv");
+    fs::write(&source, b"name,name,name_2\nAda,1,2\n")
+        .expect("writes CSV fixture");
+    let cache_directory = directory.join("cache");
+    let mut events = Vec::new();
+
+    import_source_file(&source, &cache_directory, |event| events.push(event))
+        .expect("imports duplicate headers");
+
+    assert!(events.iter().any(|event| matches!(
+        event,
+        ImportEvent::Headers { values }
+            if values == &vec!["name".to_owned(), "name_2".to_owned(), "name_2_2".to_owned()]
+    )));
+
+    fs::remove_file(cache_path_for(&source, &cache_directory)).expect("removes cache fixture");
+    fs::remove_dir(cache_directory).expect("removes cache directory");
+    fs::remove_file(source).expect("removes CSV fixture");
+    fs::remove_dir(directory).expect("removes fixture directory");
+}
+
+#[test]
 fn detects_each_supported_delimiter() {
     for (input, expected) in [
         ("name,city\nAda,Paris\nLin,Tokyo", Delimiter::Comma),

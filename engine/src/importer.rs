@@ -62,9 +62,6 @@ pub fn import_source_file(
     if headers.is_empty() {
         return Err(ImportError::NoColumns);
     }
-    report(ImportEvent::Headers {
-        values: headers.clone(),
-    });
     let mut data = Vec::new();
     if !has_header {
         data.push(first);
@@ -75,12 +72,6 @@ pub fn import_source_file(
     for record in records {
         data.push(record?);
     }
-    for (index, row) in data.iter().take(PREVIEW_ROW_LIMIT).enumerate() {
-        report(ImportEvent::Preview {
-            row: index + 1,
-            values: row.clone(),
-        });
-    }
     let columns = headers.iter().enumerate().map(|(index, name)| CsvColumn {
         source_name: name.clone(),
         column_type: infer_column_type(
@@ -89,7 +80,21 @@ pub fn import_source_file(
         ),
     });
     let mut cache = CsvCache::open_for_source(source_file, cache_directory)?;
-    cache.create_csv_table(columns)?;
+    let column_metadata = cache.create_csv_table(columns)?;
+    // The grid and query bar use the same unique identifiers as SQLite. The
+    // original source labels remain available in `csv_columns` metadata.
+    report(ImportEvent::Headers {
+        values: column_metadata
+            .into_iter()
+            .map(|column| column.sql_name)
+            .collect(),
+    });
+    for (index, row) in data.iter().take(PREVIEW_ROW_LIMIT).enumerate() {
+        report(ImportEvent::Preview {
+            row: index + 1,
+            values: row.clone(),
+        });
+    }
     let imported_rows = cache.import_csv_records_with_progress(
         headers.len(),
         data.into_iter().map(Ok),

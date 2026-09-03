@@ -637,14 +637,6 @@ fn looks_like_header(first_record: &[String], second_record: Option<&[String]>) 
     if first_record.is_empty() || first_record.iter().any(|value| value.trim().is_empty()) {
         return false;
     }
-    for (index, value) in first_record.iter().enumerate() {
-        if first_record[..index]
-            .iter()
-            .any(|previous| previous.eq_ignore_ascii_case(value))
-        {
-            return false;
-        }
-    }
     second_record.is_some_and(|record| {
         record.len() == first_record.len()
             && record.iter().zip(first_record).any(|(data, name)| {
