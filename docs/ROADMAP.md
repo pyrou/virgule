@@ -5,7 +5,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 ## Iteration rules
 
 - [ ] Every step ends with an atomic commit.
-- [ ] Every application commit compiles on Apple Silicon running macOS 14+.
+- [ ] Every application commit compiles on Apple Silicon running macOS 26+.
 - [ ] Every feature has a reproducible verification method (test, command, or documented procedure).
 - [ ] The source CSV is never opened for writing.
 - [ ] Heavy processing never blocks the AppKit main thread.
@@ -20,12 +20,12 @@ This checklist is the source of truth for scope. Check an item only after it has
 
 ## 1. Compilable workspace
 
-- [ ] Create the arm64 macOS 14+ AppKit Xcode project.
-- [ ] Create the Rust engine crate and an Xcode-integrated build script.
-- [ ] Define a small, safe C FFI API to create and destroy the engine.
-- [ ] Add the Rust test target.
-- [ ] Document prerequisites and build/test commands.
-- [ ] Verify a Debug build of the application.
+- [x] Create the arm64 macOS 26+ AppKit Xcode project.
+- [x] Create the Rust engine crate and an Xcode-integrated build script.
+- [x] Define a small, safe C FFI API to create and destroy the engine.
+- [x] Add the Rust test target.
+- [x] Document prerequisites and build/test commands.
+- [x] Verify a Debug build of the application.
 
 ## 2. Reliable CSV ingestion
 

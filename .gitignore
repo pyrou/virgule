@@ -1,0 +1,7 @@
+# macOS and Xcode user state
+.DS_Store
+*.xcuserstate
+xcuserdata/
+
+# Rust build products
+engine/target/

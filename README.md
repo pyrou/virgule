@@ -8,7 +8,7 @@ Virgule lets people explore, filter, sort, and query very large CSV files withou
 
 ## Product principles
 
-- macOS 14+ and Apple Silicon only;
+- macOS 26+ and Apple Silicon only;
 - a fully native application: AppKit + Swift for the UI, Rust for the engine;
 - no embedded browser, WebView, or JavaScript;
 - source CSV files are strictly read-only;
@@ -62,9 +62,35 @@ When inference is ambiguous, the raw text is preserved.
 
 The detailed acceptance criteria live in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-## Running the app
+## Prerequisites
 
-The app has not been initialized yet: this first iteration intentionally contains only the documentation and construction plan. Build and test commands will be added once the compilable workspace exists (iteration 2).
+- Apple Silicon Mac running macOS 26 or later;
+- Xcode 26 or later, including the macOS SDK and command-line tools;
+- Rust 1.85 or later, installed through [rustup](https://rustup.rs/).
+
+## Build and test
+
+Open [`virgule.xcodeproj`](virgule.xcodeproj) in Xcode and run the `virgule`
+scheme, or build the debug application from the command line:
+
+```sh
+xcodebuild -project virgule.xcodeproj -scheme virgule \\
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \\
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+Xcode invokes `scripts/build-rust-engine.sh` before compiling Swift. The script
+builds the static Rust library for the selected configuration and links it into
+the app.
+
+Run the Rust engine tests independently with:
+
+```sh
+cargo test --manifest-path engine/Cargo.toml
+```
+
+The initial AppKit window deliberately contains no file-opening workflow yet;
+that arrives in the AppKit application iteration of the roadmap.
 
 ## Non-goals
 

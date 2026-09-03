@@ -1,0 +1,12 @@
+[package]
+name = "virgule_engine"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+
+[lib]
+crate-type = ["staticlib"]
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
