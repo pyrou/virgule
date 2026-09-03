@@ -68,7 +68,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Keep row numbers stable.
 - [x] Make columns resizable.
 - [x] Load SQLite pages on demand while scrolling.
-- [ ] Reuse visible row/cell views.
+- [x] Reuse visible row/cell views.
 - [ ] Verify that no cells are created for off-screen rows.
 - [ ] Measure scrolling with a one-million-row dataset.
 
