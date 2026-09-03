@@ -122,6 +122,24 @@ fn emit_ffi_query_description(
     unsafe { callback(&event, context) };
 }
 
+/// Emits a successful validation using the existing event ABI. A headers event
+/// is an unambiguous success marker and does not require transferring schema
+/// metadata or evaluating the query.
+fn emit_ffi_query_validation(callback: VirguleImportCallback, context: *mut c_void) {
+    let message = CString::default();
+    let event = VirguleImportEvent {
+        kind: 5,
+        row: 0,
+        imported_rows: 0,
+        total_bytes: 0,
+        values: std::ptr::null(),
+        value_count: 0,
+        message: message.as_ptr(),
+    };
+    // SAFETY: callback and its borrowed message are valid for this call.
+    unsafe { callback(&event, context) };
+}
+
 /// Allocates a new engine instance for the Swift host.
 #[unsafe(no_mangle)]
 pub extern "C" fn virgule_engine_create() -> *mut VirguleEngine {
@@ -340,6 +358,60 @@ pub unsafe extern "C" fn virgule_engine_describe_query(
             description.column_names,
             description.row_count,
         ),
+        Err(error) => emit_ffi_error(
+            callback,
+            context,
+            &ImportError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, error)),
+        ),
+    }
+    0
+}
+
+/// Checks the current editor SQL without executing it or counting result rows.
+/// A headers event signals success; an error event includes a one-based line
+/// and column when SQLite identifies the invalid token.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn virgule_engine_validate_query(
+    engine: *mut VirguleEngine,
+    cache_path: *const c_char,
+    sql: *const c_char,
+    callback: Option<VirguleImportCallback>,
+    context: *mut c_void,
+) -> i32 {
+    let Some(callback) = callback else {
+        return -1;
+    };
+    if engine.is_null() {
+        return -1;
+    }
+    let (Ok(cache_path), Ok(sql)) = (ffi_string(cache_path), ffi_string(sql)) else {
+        emit_ffi_error(
+            callback,
+            context,
+            &ImportError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Invalid query arguments.",
+            )),
+        );
+        return 0;
+    };
+    let connection = match Connection::open(&cache_path) {
+        Ok(value) => value,
+        Err(error) => {
+            emit_ffi_error(
+                callback,
+                context,
+                &ImportError::Io(std::io::Error::other(error)),
+            );
+            return 0;
+        }
+    };
+    let cache = CsvCache {
+        connection,
+        path: PathBuf::from(&cache_path),
+    };
+    match cache.validate_query(&sql) {
+        Ok(()) => emit_ffi_query_validation(callback, context),
         Err(error) => emit_ffi_error(
             callback,
             context,

@@ -83,6 +83,13 @@ int32_t virgule_engine_describe_query(
     VirguleImportCallback callback, void *context
 );
 
+/// Checks editor SQL without executing it. A VIRGULE_IMPORT_HEADERS callback
+/// means valid; errors use `message`, including line and column when available.
+int32_t virgule_engine_validate_query(
+    VirguleEngine *engine, const char *cache_path, const char *sql,
+    VirguleImportCallback callback, void *context
+);
+
 /// Reads one bounded page of a validated SQL result. Result row numbers refer
 /// to the current view, not necessarily the source CSV order.
 int32_t virgule_engine_read_query_page(

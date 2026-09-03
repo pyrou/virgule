@@ -24,6 +24,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private var baseQueryReadsCSV = false
     private var sortDescriptors: [SortDescriptor] = []
     private var currentViewID = UUID()
+    private var currentValidationID = UUID()
+    private var scheduledValidation: DispatchWorkItem?
     private let pageSize = 256
     private let maximumCachedPages = 8
 
@@ -55,6 +57,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         queryBar.isHidden = true
         queryBar.toolTip = "The SQL for the current read-only CSV view."
         queryBar.onExecute = { [weak self] sql in self?.executeQuery(sql) }
+        queryBar.onSQLChanged = { [weak self] sql in self?.validateQueryWhileTyping(sql) }
 
         openButton.bezelStyle = .rounded
         openButton.target = self
@@ -84,7 +87,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
             queryBar.topAnchor.constraint(equalTo: dropView.safeAreaLayoutGuide.topAnchor, constant: 12),
             queryBar.leadingAnchor.constraint(equalTo: dropView.leadingAnchor, constant: 16),
             queryBar.trailingAnchor.constraint(equalTo: dropView.trailingAnchor, constant: -16),
-            queryBar.heightAnchor.constraint(equalToConstant: 78),
+            queryBar.heightAnchor.constraint(equalToConstant: 98),
             gridView.topAnchor.constraint(equalTo: queryBar.bottomAnchor, constant: 12),
             gridView.leadingAnchor.constraint(equalTo: dropView.leadingAnchor),
             gridView.trailingAnchor.constraint(equalTo: dropView.trailingAnchor),
@@ -140,6 +143,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         baseQueryReadsCSV = false
         sortDescriptors = []
         currentViewID = UUID()
+        currentValidationID = UUID()
+        scheduledValidation?.cancel()
         queryBar.sql = ""
         setGridVisible(false)
         gridView.reloadData()
@@ -368,13 +373,55 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
             guard event.kind == VIRGULE_IMPORT_HEADERS.rawValue else {
                 self.activeQuerySQL = nil
                 self.detailLabel.stringValue = "Query error: \(event.message)"
+                self.queryBar.setValidationMessage(event.message)
                 return
             }
+            self.queryBar.setValidationMessage(nil)
             self.columnTitles = event.values
             self.columnCount = event.values.count
             self.importedRowCount = event.importedRows
             self.detailLabel.stringValue = "\(event.importedRows) matching rows"
             self.gridView.reloadData()
+        }
+    }
+
+    private func validateQueryWhileTyping(_ sql: String) {
+        scheduledValidation?.cancel()
+        guard let cachePath, let importID = currentImportID else { return }
+        let validationID = UUID()
+        currentValidationID = validationID
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            let context = Unmanaged.passRetained(ValidationContext(
+                controller: self,
+                importID: importID,
+                validationID: validationID
+            ))
+            DispatchQueue.global(qos: .userInitiated).async {
+                defer { context.release() }
+                _ = cachePath.withCString { path in
+                    sql.withCString { query in
+                        virgule_engine_validate_query(
+                            self.engine,
+                            path,
+                            query,
+                            virguleValidationCallback,
+                            context.toOpaque()
+                        )
+                    }
+                }
+            }
+        }
+        scheduledValidation = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(180), execute: workItem)
+    }
+
+    fileprivate func receiveValidation(_ event: ImportEventSnapshot, importID: UUID, validationID: UUID) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.currentImportID == importID, self.currentValidationID == validationID else { return }
+            self.queryBar.setValidationMessage(
+                event.kind == VIRGULE_IMPORT_HEADERS.rawValue ? nil : event.message
+            )
         }
     }
 
@@ -485,6 +532,18 @@ private final class QueryContext {
     }
 }
 
+private final class ValidationContext {
+    weak var controller: ContentViewController?
+    let importID: UUID
+    let validationID: UUID
+
+    init(controller: ContentViewController, importID: UUID, validationID: UUID) {
+        self.controller = controller
+        self.importID = importID
+        self.validationID = validationID
+    }
+}
+
 private struct ImportEventSnapshot {
     let kind: UInt32
     let importedRows: Int
@@ -552,6 +611,24 @@ private let virguleQueryCallback: VirguleImportCallback = { event, context in
         message: queryEvent.message.map { String(cString: $0) } ?? ""
     )
     queryContext.controller?.receiveQueryDescription(snapshot, importID: queryContext.importID, viewID: queryContext.viewID)
+}
+
+private let virguleValidationCallback: VirguleImportCallback = { event, context in
+    guard let event, let context else { return }
+    let validationContext = Unmanaged<ValidationContext>.fromOpaque(context).takeUnretainedValue()
+    let validationEvent = event.pointee
+    let snapshot = ImportEventSnapshot(
+        kind: validationEvent.kind,
+        importedRows: validationEvent.imported_rows,
+        totalBytes: validationEvent.total_bytes,
+        values: [],
+        message: validationEvent.message.map { String(cString: $0) } ?? ""
+    )
+    validationContext.controller?.receiveValidation(
+        snapshot,
+        importID: validationContext.importID,
+        validationID: validationContext.validationID
+    )
 }
 
 private extension NSToolbarItem.Identifier {

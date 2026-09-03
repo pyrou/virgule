@@ -6,17 +6,24 @@ import AppKit
 final class SQLQueryBar: NSView, NSTextViewDelegate {
     let textView = SQLQueryTextView()
     private let formatButton = NSButton(title: "Format", target: nil, action: nil)
+    private let validationLabel = NSTextField(labelWithString: "")
 
     /// Invoked with the complete multi-line query when the user presses
     /// Command-Return. The owner can execute it asynchronously without making
     /// the editor responsible for data access.
     var onExecute: ((String) -> Void)?
+    /// Called after every user edit so validation can remain outside this view
+    /// and run against the active SQLite cache without blocking typing.
+    var onSQLChanged: ((String) -> Void)?
+
+    private(set) var validationMessage: String?
 
     var sql: String {
         get { textView.string }
         set {
             textView.string = newValue
             highlightSyntax()
+            setValidationMessage(nil)
         }
     }
 
@@ -74,27 +81,51 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         formatButton.target = self
         formatButton.action = #selector(prettyPrint(_:))
 
+        validationLabel.font = .systemFont(ofSize: 11)
+        validationLabel.textColor = .systemRed
+        validationLabel.lineBreakMode = .byTruncatingTail
+        validationLabel.isHidden = true
+
         addSubview(scrollView)
         addSubview(formatButton)
+        addSubview(validationLabel)
         NSLayoutConstraint.activate([
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: formatButton.leadingAnchor, constant: -4),
             scrollView.topAnchor.constraint(equalTo: topAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: validationLabel.topAnchor, constant: -2),
             formatButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            formatButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -7),
+            formatButton.bottomAnchor.constraint(equalTo: validationLabel.topAnchor, constant: -2),
+            validationLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+            validationLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+            validationLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -5),
         ])
         highlightSyntax()
     }
 
     func textDidChange(_ notification: Notification) {
         highlightSyntax()
+        setValidationMessage(nil)
+        onSQLChanged?(sql)
     }
 
     /// Runs the editor action. Kept separate from key handling so callers and
     /// tests can invoke the same Command-Return behavior directly.
     func executeQuery() {
         onExecute?(sql)
+    }
+
+    /// Shows the latest asynchronous validation result below the editor. A
+    /// nil value represents a syntactically valid query.
+    func setValidationMessage(_ message: String?) {
+        validationMessage = message
+        validationLabel.stringValue = message ?? ""
+        validationLabel.isHidden = message == nil
+        layer?.borderColor = (message == nil
+            ? NSColor.separatorColor.withAlphaComponent(0.55)
+            : NSColor.systemRed.withAlphaComponent(0.8)
+        ).cgColor
+        setAccessibilityValue(message)
     }
 
     /// Rewrites only SQL whitespace and keyword casing. String literals,

@@ -369,8 +369,33 @@ fn rejects_write_and_non_query_sql() {
     }
     assert!(matches!(
         cache.validate_query("SELECT * FROM csv; DELETE FROM csv"),
-        Err(SqlValidationError::Invalid(_)) | Err(SqlValidationError::WriteOperation)
+        Err(SqlValidationError::Invalid { .. }) | Err(SqlValidationError::WriteOperation)
     ));
+}
+
+#[test]
+fn reports_line_and_column_for_sql_syntax_errors() {
+    let connection = Connection::open_in_memory().expect("opens in-memory cache");
+    connection
+        .execute_batch("CREATE TABLE csv (name TEXT)")
+        .expect("creates CSV fixture");
+    let cache = CsvCache {
+        connection,
+        path: PathBuf::from(":memory:"),
+    };
+    let sql = "SELECT name\nFORM csv";
+
+    let error = cache.validate_query(sql).expect_err("rejects malformed SQL");
+
+    assert!(matches!(
+        error,
+        SqlValidationError::Invalid {
+            line: Some(2),
+            column: Some(6),
+            ..
+        },
+    ), "{error:?}");
+    assert!(error.to_string().contains("line 2, column 6"));
 }
 
 #[test]

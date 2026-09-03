@@ -59,7 +59,11 @@ pub enum SqlValidationError {
     Empty,
     UnsupportedStatement { keyword: String },
     WriteOperation,
-    Invalid(rusqlite::Error),
+    Invalid {
+        error: rusqlite::Error,
+        line: Option<usize>,
+        column: Option<usize>,
+    },
 }
 
 impl fmt::Display for SqlValidationError {
@@ -71,12 +75,38 @@ impl fmt::Display for SqlValidationError {
                 "Only SELECT, WITH, and EXPLAIN queries are allowed (found {keyword})."
             ),
             Self::WriteOperation => formatter.write_str("Queries must not modify the local cache."),
-            Self::Invalid(error) => write!(formatter, "Invalid SQL query: {error}"),
+            Self::Invalid { error, line: Some(line), column: Some(column) } => write!(
+                formatter,
+                "Invalid SQL query at line {line}, column {column}: {error}"
+            ),
+            Self::Invalid { error, .. } => write!(formatter, "Invalid SQL query: {error}"),
         }
     }
 }
 
 impl std::error::Error for SqlValidationError {}
+
+/// SQLite reports parse locations as UTF-8 byte offsets. Convert that stable
+/// engine-level location into the one-based coordinates shown by the editor.
+fn sql_input_error(sql: &str, error: rusqlite::Error) -> SqlValidationError {
+    let offset = match &error {
+        rusqlite::Error::SqlInputError { offset, .. } if *offset >= 0 => Some(*offset as usize),
+        _ => None,
+    };
+    let (line, column) = offset
+        .filter(|offset| *offset <= sql.len() && sql.is_char_boundary(*offset))
+        .map(|offset| {
+            let prefix = &sql[..offset];
+            let line = prefix.bytes().filter(|byte| *byte == b'\n').count() + 1;
+            let column = prefix
+                .rsplit_once('\n')
+                .map_or(prefix.chars().count(), |(_, current_line)| current_line.chars().count())
+                + 1;
+            (line, column)
+        })
+        .map_or((None, None), |(line, column)| (Some(line), Some(column)));
+    SqlValidationError::Invalid { error, line, column }
+}
 
 impl CsvCache {
     /// Creates or opens the cache associated with `source_file` in `cache_directory`.
@@ -128,7 +158,7 @@ impl CsvCache {
         let validation = match self.connection.prepare(sql) {
             Ok(statement) if statement.readonly() => Ok(()),
             Ok(_) => Err(SqlValidationError::WriteOperation),
-            Err(error) => Err(SqlValidationError::Invalid(error)),
+            Err(error) => Err(sql_input_error(sql, error)),
         };
         self.connection
             .authorizer(None::<fn(AuthContext<'_>) -> Authorization>);
@@ -173,7 +203,7 @@ impl CsvCache {
         let statement = self
             .connection
             .prepare(sql)
-            .map_err(SqlValidationError::Invalid)?;
+            .map_err(|error| sql_input_error(sql, error))?;
         // `__virgule_row_id` is implementation metadata. It can be returned
         // by a user-written `SELECT *`, but the AppKit grid presents it in the
         // dedicated `#` column instead of duplicating it as CSV data.
@@ -187,7 +217,7 @@ impl CsvCache {
         let row_count = self
             .connection
             .query_row(&count_sql, [], |row| row.get(0))
-            .map_err(SqlValidationError::Invalid)?;
+            .map_err(|error| sql_input_error(sql, error))?;
         Ok(QueryDescription {
             column_names,
             row_count,

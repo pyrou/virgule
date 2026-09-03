@@ -111,6 +111,16 @@ struct virguleTests {
 
         #expect(executedQuery == query)
     }
+
+    @Test func sqlEditorDisplaysAndClearsValidationErrors() {
+        let editor = SQLQueryBar()
+
+        editor.setValidationMessage("Invalid SQL query at line 2, column 6")
+        #expect(editor.validationMessage == "Invalid SQL query at line 2, column 6")
+
+        editor.setValidationMessage(nil)
+        #expect(editor.validationMessage == nil)
+    }
 }
 
 private final class GridDataSource: VirtualizedGridDataSource {
