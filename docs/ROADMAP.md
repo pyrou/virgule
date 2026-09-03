@@ -30,7 +30,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 ## 2. Reliable CSV ingestion
 
 - [x] Detect comma, semicolon, tab, and pipe delimiters.
-- [ ] Allow manual delimiter override.
+- [x] Allow manual delimiter override.
 - [ ] Read UTF-8, UTF-16, and Windows-1252; expose manual selection.
 - [ ] Support files with and without headers.
 - [ ] Stream-parse quoted fields containing delimiters.

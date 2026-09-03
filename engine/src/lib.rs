@@ -14,6 +14,25 @@ pub enum Delimiter {
     Pipe,
 }
 
+/// The delimiter selection requested by the caller for one import.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DelimiterSelection {
+    /// Inspect the input sample and choose a supported delimiter.
+    Automatic,
+    /// Use a user-selected delimiter without inspecting the input.
+    Manual(Delimiter),
+}
+
+impl DelimiterSelection {
+    /// Resolves this selection against an input sample.
+    pub fn resolve(self, input: &str) -> Option<Delimiter> {
+        match self {
+            Self::Automatic => detect_delimiter(input),
+            Self::Manual(delimiter) => Some(delimiter),
+        }
+    }
+}
+
 impl Delimiter {
     const CANDIDATES: [Self; 4] = [Self::Comma, Self::Semicolon, Self::Tab, Self::Pipe];
 
@@ -160,6 +179,24 @@ mod tests {
     #[test]
     fn returns_none_for_a_single_column_file() {
         assert_eq!(detect_delimiter("name\nAda\nLin"), None);
+    }
+
+    #[test]
+    fn manual_delimiter_selection_takes_precedence_over_detection() {
+        let input = "name,city\nAda,Paris";
+        assert_eq!(
+            DelimiterSelection::Manual(Delimiter::Pipe).resolve(input),
+            Some(Delimiter::Pipe)
+        );
+    }
+
+    #[test]
+    fn automatic_delimiter_selection_uses_detection() {
+        let input = "name\tcity\nAda\tParis";
+        assert_eq!(
+            DelimiterSelection::Automatic.resolve(input),
+            Some(Delimiter::Tab)
+        );
     }
 
     #[test]
