@@ -38,7 +38,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Support escaped quotes.
 - [x] Infer null, boolean, integer, decimal, date/datetime, and text.
 - [x] Preserve text when inference is ambiguous.
-- [ ] Write the required Rust unit tests for a quoted comma and a quoted line break.
+- [x] Write the required Rust unit tests for a quoted comma and a quoted line break.
 
 ## 3. SQLite cache and query engine
 
