@@ -35,7 +35,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Support files with and without headers.
 - [x] Stream-parse quoted fields containing delimiters.
 - [x] Stream-parse quoted fields containing line breaks.
-- [ ] Support escaped quotes.
+- [x] Support escaped quotes.
 - [ ] Infer null, boolean, integer, decimal, date/datetime, and text.
 - [ ] Preserve text when inference is ambiguous.
 - [ ] Write the required Rust unit tests for a quoted comma and a quoted line break.
