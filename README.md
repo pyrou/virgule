@@ -89,10 +89,11 @@ Run the Rust engine tests independently with:
 cargo test --manifest-path engine/Cargo.toml
 ```
 
-The initial AppKit window provides a toolbar button and a central button for
-selecting a CSV or TSV file. It also accepts CSV and TSV files dropped onto the
-window. This first UI slice records the selected source only; importing and
-previewing it will follow once the asynchronous import FFI is exposed.
+The AppKit window provides a toolbar button and a central button for selecting
+a CSV or TSV file. It also accepts CSV and TSV files dropped onto the window.
+During an import, its early rows are rendered in a native virtualized grid:
+only row and cell views in the current viewport are created, then recycled as
+the user scrolls. SQLite-backed page loading follows in the next grid slice.
 
 ## Non-goals
 

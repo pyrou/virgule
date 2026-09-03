@@ -1,14 +1,14 @@
 import AppKit
 import UniformTypeIdentifiers
 
-final class ContentViewController: NSViewController, NSToolbarDelegate {
+final class ContentViewController: NSViewController, NSToolbarDelegate, VirtualizedGridDataSource {
     private let engine = virgule_engine_create()
     private let titleLabel = NSTextField(labelWithString: "Open a CSV file to begin")
     private let detailLabel = NSTextField(wrappingLabelWithString: "Choose a CSV file or drag one into this window.")
-    private let previewLabel = NSTextField(wrappingLabelWithString: "")
+    private let gridView = VirtualizedGridView()
     private let openButton = NSButton(title: "Open CSV…", target: nil, action: nil)
     private var currentImportID: UUID?
-    private var previewRows: [String] = []
+    private var previewRows: [[String]] = []
 
     deinit {
         virgule_engine_destroy(engine)
@@ -29,10 +29,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate {
         detailLabel.maximumNumberOfLines = 2
         detailLabel.setContentCompressionResistancePriority(.required, for: .vertical)
 
-        previewLabel.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-        previewLabel.textColor = .secondaryLabelColor
-        previewLabel.maximumNumberOfLines = 5
-        previewLabel.isHidden = true
+        gridView.dataSource = self
+        gridView.isHidden = true
 
         openButton.bezelStyle = .rounded
         openButton.target = self
@@ -43,17 +41,27 @@ final class ContentViewController: NSViewController, NSToolbarDelegate {
         readOnlyLabel.textColor = .secondaryLabelColor
         readOnlyLabel.alignment = .center
 
-        let stack = NSStackView(views: [titleLabel, detailLabel, previewLabel, openButton, readOnlyLabel])
+        let controls = NSStackView(views: [titleLabel, detailLabel, openButton, readOnlyLabel])
+        controls.orientation = .vertical
+        controls.alignment = .centerX
+        controls.spacing = 12
+
+        let stack = NSStackView(views: [controls, gridView])
         stack.orientation = .vertical
-        stack.alignment = .centerX
+        stack.alignment = .leading
         stack.spacing = 12
 
         dropView.addSubview(stack)
         stack.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             stack.centerXAnchor.constraint(equalTo: dropView.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: dropView.centerYAnchor),
-            detailLabel.widthAnchor.constraint(lessThanOrEqualTo: dropView.widthAnchor, constant: -80),
+            stack.topAnchor.constraint(equalTo: dropView.topAnchor, constant: 32),
+            stack.leadingAnchor.constraint(equalTo: dropView.leadingAnchor, constant: 40),
+            stack.trailingAnchor.constraint(equalTo: dropView.trailingAnchor, constant: -40),
+            stack.bottomAnchor.constraint(equalTo: dropView.bottomAnchor, constant: -32),
+            detailLabel.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor),
+            gridView.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            gridView.heightAnchor.constraint(greaterThanOrEqualToConstant: 220),
         ])
         view = dropView
     }
@@ -85,8 +93,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate {
         let importID = UUID()
         currentImportID = importID
         previewRows = []
-        previewLabel.stringValue = ""
-        previewLabel.isHidden = true
+        gridView.isHidden = true
+        gridView.reloadData()
         titleLabel.stringValue = "Importing \(url.lastPathComponent)…"
         detailLabel.stringValue = url.path
         openButton.isEnabled = false
@@ -118,9 +126,9 @@ final class ContentViewController: NSViewController, NSToolbarDelegate {
             case VIRGULE_IMPORT_PREVIEW.rawValue:
                 self.detailLabel.stringValue = "Reading rows…"
                 if self.previewRows.count < 5 {
-                    self.previewRows.append(event.values.joined(separator: "\t"))
-                    self.previewLabel.stringValue = self.previewRows.joined(separator: "\n")
-                    self.previewLabel.isHidden = false
+                    self.previewRows.append(event.values)
+                    self.gridView.isHidden = false
+                    self.gridView.reloadData()
                 }
             case VIRGULE_IMPORT_PROGRESS.rawValue:
                 self.detailLabel.stringValue = "Imported \(event.importedRows) rows…"
@@ -138,6 +146,18 @@ final class ContentViewController: NSViewController, NSToolbarDelegate {
                 break
             }
         }
+    }
+
+    func numberOfRows(in grid: VirtualizedGridView) -> Int {
+        previewRows.count
+    }
+
+    func numberOfColumns(in grid: VirtualizedGridView) -> Int {
+        previewRows.map { $0.count }.max() ?? 0
+    }
+
+    func grid(_ grid: VirtualizedGridView, valueForRow row: Int, column: Int) -> String {
+        previewRows[row].indices.contains(column) ? previewRows[row][column] : ""
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
