@@ -1,75 +1,75 @@
 # Virgule
 
-Explorateur CSV local et natif pour macOS — **"TablePlus pour les CSV"**.
+A local, native CSV explorer for macOS — **"TablePlus for CSV files."**
 
-Virgule permet d'explorer, filtrer, trier et requêter de très grands fichiers CSV sans jamais modifier le fichier source. Les modifications sont des vues SQL réversibles, stockées localement avec leurs bookmarks et annotations.
+Virgule lets people explore, filter, sort, and query very large CSV files without ever modifying the source file. Changes are reversible SQL views, stored locally alongside bookmarks and annotations.
 
-> **Statut : fondation du projet.** L'application compilable sera construite par itérations; suivre [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> **Status: project foundation.** The compilable app will be built iteratively; follow [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-## Principes produit
+## Product principles
 
-- macOS 14+ et Apple Silicon uniquement;
-- application 100 % native : AppKit + Swift pour l'interface, Rust pour le moteur;
-- aucun navigateur embarqué, WebView ou JavaScript;
-- fichier CSV source strictement en lecture seule;
-- aucune édition de cellule, formule ou fonctionnalité de tableur;
-- traitement asynchrone : le thread UI ne fait jamais d'import ni de requête coûteuse;
-- priorité à la fluidité sur des fichiers d'un million de lignes.
+- macOS 14+ and Apple Silicon only;
+- a fully native application: AppKit + Swift for the UI, Rust for the engine;
+- no embedded browser, WebView, or JavaScript;
+- source CSV files are strictly read-only;
+- no cell editing, formulas, or spreadsheet features;
+- asynchronous processing: the UI thread never runs an import or an expensive query;
+- smooth interaction with one-million-row files is the top priority.
 
-## Architecture cible
+## Target architecture
 
 ```text
 AppKit (Swift)
   ├── Sidebar / query bar / inspector
-  └── Grille NSView virtualisée
-           │ FFI (API C stable)
+  └── Virtualized NSView grid
+           │ FFI (stable C API)
            ▼
-Moteur Rust
-  ├── Détection encodage et séparateur
-  ├── Parser CSV streaming et inférence de types
-  ├── Import SQLite transactionnel (statements préparés)
-  ├── Validation SQL lecture seule
-  └── Pagination, recherche et métadonnées
+Rust engine
+  ├── Encoding and delimiter detection
+  ├── Streaming CSV parser and type inference
+  ├── Transactional SQLite import (prepared statements)
+  ├── Read-only SQL validation
+  └── Pagination, search, and metadata
            │
            ▼
-Cache local temporaire par fichier source (SQLite)
+Local temporary cache for each source file (SQLite)
 ```
 
-Le CSV est lu en flux par Rust et importé dans une base SQLite de cache. La grille ne reçoit que des pages de résultats; elle ne crée donc pas de cellules pour les lignes hors écran. La table importée s'appelle `csv`.
+Rust reads the CSV as a stream and imports it into a cached SQLite database. The grid receives only result pages, so it never creates cells for off-screen rows. The imported table is named `csv`.
 
-La query bar affiche toujours le SQL exact de la vue. Les actions de tri et filtre produisent du SQL lisible. Seules les requêtes `SELECT`, `WITH` et `EXPLAIN` sont autorisées; toute instruction qui peut modifier SQLite est refusée.
+The query bar always displays the exact SQL behind the current view. Sort and filter actions produce readable SQL. Only `SELECT`, `WITH`, and `EXPLAIN` queries are allowed; any statement that can modify SQLite is rejected.
 
-## CSV pris en charge
+## Supported CSV behavior
 
-- séparateurs détectés : virgule, point-virgule, tabulation, pipe — avec remplacement manuel;
-- champs quoted, guillemets échappés, séparateurs et retours à la ligne dans les champs;
-- UTF-8, UTF-16 et Windows-1252, avec détection et choix manuel;
-- headers optionnels;
-- inférence prudente : texte, entier, décimal, booléen, date/datetime et null.
+- detected delimiters: comma, semicolon, tab, and pipe — with manual override;
+- quoted fields, escaped quotes, delimiters, and line breaks inside fields;
+- UTF-8, UTF-16, and Windows-1252, with detection and manual choice;
+- optional headers;
+- conservative inference of text, integer, decimal, boolean, date/datetime, and null.
 
-En cas d'ambiguïté, le texte brut reste préservé.
+When inference is ambiguous, the raw text is preserved.
 
-## Itérations prévues
+## Planned iterations
 
-1. Documentation et socle de dépôt (cette itération).
-2. Workspace Swift/Rust compilable et FFI minimal.
-3. Parser streaming, import SQLite et tests de correction.
-4. Fenêtre AppKit, ouverture de fichier et aperçu.
-5. Grille virtualisée paginée.
-6. Query bar SQL et opérations de vue.
-7. Recherche, sélection/copie, bookmarks et annotations.
-8. Mesures de performance et durcissement MVP.
+1. Documentation and repository foundation (this iteration).
+2. Compilable Swift/Rust workspace and minimal FFI.
+3. Streaming parser, SQLite import, and correctness tests.
+4. AppKit window, file opening, and preview.
+5. Paginated, virtualized grid.
+6. SQL query bar and view operations.
+7. Search, selection/copy, bookmarks, and annotations.
+8. Performance measurement and MVP hardening.
 
-Le détail et les critères d'acceptation sont dans [`docs/ROADMAP.md`](docs/ROADMAP.md).
+The detailed acceptance criteria live in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-## Lancer l'application
+## Running the app
 
-L'application n'est pas encore initialisée : cette première itération ne contient volontairement que la documentation et le plan de construction. Les commandes de build et de test seront ajoutées dès que le workspace compilable existera (itération 2).
+The app has not been initialized yet: this first iteration intentionally contains only the documentation and construction plan. Build and test commands will be added once the compilable workspace exists (iteration 2).
 
-## Non-objectifs
+## Non-goals
 
-- réécrire ou sauvegarder automatiquement le CSV source;
-- tableur, mise en forme ou formules dans les cellules;
-- chargement complet du dataset dans la mémoire de l'interface.
+- rewriting or automatically saving the source CSV;
+- spreadsheets, cell formatting, or formulas;
+- loading the complete dataset into UI memory.
 
-Une exportation explicite d'une vue vers un nouveau CSV pourra être ajoutée ultérieurement.
+An explicit export of a view to a new CSV may be added later.
