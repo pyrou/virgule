@@ -89,6 +89,19 @@ Run the Rust engine tests independently with:
 cargo test --manifest-path engine/Cargo.toml
 ```
 
+### One-million-row scrolling check
+
+The `gridVirtualizesOneMillionRowsWhileScrolling` AppKit test uses a
+one-million-row, 24-column data source and scrolls across it in 25,000-row
+increments. It verifies that the rendered row and cell counts remain bounded
+by the viewport (fewer than 100 rows and 1,000 cells), and that the complete
+scroll sweep finishes within one second. Run it with:
+
+```sh
+xcodebuild -project virgule.xcodeproj -scheme virgule \\
+  -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO test
+```
+
 The AppKit window provides a toolbar button and a central button for selecting
 a CSV or TSV file. It also accepts CSV and TSV files dropped onto the window.
 During an import, its early rows are rendered in a native virtualized grid:

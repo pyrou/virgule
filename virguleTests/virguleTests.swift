@@ -30,6 +30,28 @@ struct virguleTests {
         #expect(grid.visibleCellViewCount < totalCells)
     }
 
+    @Test func gridVirtualizesOneMillionRowsWhileScrolling() {
+        let dataSource = GridDataSource(rows: 1_000_000, columns: 24)
+        let grid = VirtualizedGridView(frame: NSRect(x: 0, y: 0, width: 1_280, height: 720))
+        grid.dataSource = dataSource
+        grid.layoutSubtreeIfNeeded()
+
+        let clock = ContinuousClock()
+        let elapsed = clock.measure {
+            for row in stride(from: 0, through: 999_999, by: 25_000) {
+                grid.scrollToRow(row)
+            }
+        }
+
+        // The grid may retain only the current viewport. This deliberately
+        // stays independent of the one-million-row model size.
+        #expect(grid.visibleRowViewCount > 0)
+        #expect(grid.visibleRowViewCount < 100)
+        #expect(grid.visibleCellViewCount > 0)
+        #expect(grid.visibleCellViewCount < 1_000)
+        #expect(elapsed < .seconds(1))
+    }
+
     @Test func sqlEditorHighlightsKeywordsAndComments() {
         let sql = "SELECT COUNT(*) FROM csv -- all rows"
         let highlighted = SQLQueryBar.highlightedText(for: sql)
