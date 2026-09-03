@@ -7,12 +7,18 @@ protocol VirtualizedGridDataSource: AnyObject {
     func numberOfRows(in grid: VirtualizedGridView) -> Int
     func numberOfColumns(in grid: VirtualizedGridView) -> Int
     func grid(_ grid: VirtualizedGridView, valueForRow row: Int, column: Int) -> String
+    func grid(_ grid: VirtualizedGridView, titleForColumn column: Int) -> String
+}
+
+extension VirtualizedGridDataSource {
+    func grid(_ grid: VirtualizedGridView, titleForColumn column: Int) -> String {
+        "Column \(column + 1)"
+    }
 }
 
 /// A scrollable AppKit grid which creates row and cell views only for the
-/// current viewport. Headers, sizing controls, and page loading are kept out
-/// of this view so they can be layered on without changing its virtualization
-/// contract.
+/// current viewport. Its header stays above the scrolling document while
+/// virtualizing its visible column labels independently of row cells.
 final class VirtualizedGridView: NSView {
     weak var dataSource: VirtualizedGridDataSource? {
         didSet { reloadData() }
@@ -20,6 +26,8 @@ final class VirtualizedGridView: NSView {
 
     private let scrollView = NSScrollView()
     private let documentView = VirtualizedGridDocumentView()
+    private let headerClipView = NSClipView()
+    private let headerDocumentView = VirtualizedGridHeaderDocumentView()
     private var boundsObserver: NSObjectProtocol?
 
     /// Useful for UI tests and diagnostics: this count is bounded by the
@@ -29,29 +37,19 @@ final class VirtualizedGridView: NSView {
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-
-        scrollView.drawsBackground = false
-        scrollView.hasVerticalScroller = true
-        scrollView.hasHorizontalScroller = true
-        scrollView.autohidesScrollers = true
-        scrollView.borderType = .lineBorder
-        scrollView.contentView.postsBoundsChangedNotifications = true
-        scrollView.documentView = documentView
-        documentView.grid = self
-
-        addSubview(scrollView)
-        boundsObserver = NotificationCenter.default.addObserver(
-            forName: NSView.boundsDidChangeNotification,
-            object: scrollView.contentView,
-            queue: .main
-        ) { [weak self] _ in
-            self?.documentView.refreshVisibleViews()
-        }
+        configureViews()
         reloadData()
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
+        configureViews()
+    }
+
+    private func configureViews() {
+        headerClipView.drawsBackground = false
+        headerClipView.documentView = headerDocumentView
+        headerDocumentView.grid = self
 
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
@@ -62,13 +60,14 @@ final class VirtualizedGridView: NSView {
         scrollView.documentView = documentView
         documentView.grid = self
 
+        addSubview(headerClipView)
         addSubview(scrollView)
         boundsObserver = NotificationCenter.default.addObserver(
             forName: NSView.boundsDidChangeNotification,
             object: scrollView.contentView,
             queue: .main
         ) { [weak self] _ in
-            self?.documentView.refreshVisibleViews()
+            self?.refreshVisibleViews()
         }
     }
 
@@ -80,7 +79,13 @@ final class VirtualizedGridView: NSView {
 
     override func layout() {
         super.layout()
-        scrollView.frame = bounds
+        headerClipView.frame = NSRect(x: 0, y: 0, width: bounds.width, height: Self.headerHeight)
+        scrollView.frame = NSRect(
+            x: 0,
+            y: Self.headerHeight,
+            width: bounds.width,
+            height: max(0, bounds.height - Self.headerHeight)
+        )
         updateDocumentMetrics()
     }
 
@@ -94,6 +99,16 @@ final class VirtualizedGridView: NSView {
         dataSource?.grid(self, valueForRow: row, column: column) ?? ""
     }
 
+    fileprivate func title(forColumn column: Int) -> String {
+        dataSource?.grid(self, titleForColumn: column) ?? ""
+    }
+
+    private func refreshVisibleViews() {
+        documentView.refreshVisibleViews()
+        headerClipView.scroll(to: NSPoint(x: scrollView.contentView.bounds.minX, y: 0))
+        headerDocumentView.refreshVisibleViews()
+    }
+
     private func updateDocumentMetrics() {
         let rows = max(0, dataSource?.numberOfRows(in: self) ?? 0)
         let columns = max(0, dataSource?.numberOfColumns(in: self) ?? 0)
@@ -102,7 +117,11 @@ final class VirtualizedGridView: NSView {
             columnCount: columns,
             viewportWidth: scrollView.contentView.bounds.width
         )
+        headerDocumentView.updateMetrics(columnCount: columns, width: documentView.bounds.width)
+        refreshVisibleViews()
     }
+
+    private static let headerHeight: CGFloat = 24
 }
 
 private final class VirtualizedGridDocumentView: NSView {
@@ -192,6 +211,90 @@ private final class VirtualizedGridDocumentView: NSView {
         let lower = max(0, Int(floor(visibleRect.minX / Self.columnWidth)))
         let upper = min(columnCount, Int(ceil(visibleRect.maxX / Self.columnWidth)))
         return lower ..< max(lower, upper)
+    }
+}
+
+private final class VirtualizedGridHeaderDocumentView: NSView {
+    private static let columnWidth: CGFloat = 160
+    private static let headerHeight: CGFloat = 24
+
+    private var columnCount = 0
+    private var activeCells: [Int: VirtualizedGridHeaderCellView] = [:]
+    private var recycledCells: [VirtualizedGridHeaderCellView] = []
+
+    weak var grid: VirtualizedGridView? {
+        didSet { refreshVisibleViews() }
+    }
+
+    override var isFlipped: Bool { true }
+
+    func updateMetrics(columnCount: Int, width: CGFloat) {
+        self.columnCount = columnCount
+        frame = NSRect(x: 0, y: 0, width: width, height: Self.headerHeight)
+        refreshVisibleViews()
+    }
+
+    func refreshVisibleViews() {
+        let visibleColumns = visibleColumnRange()
+        let requiredColumns = Set(visibleColumns)
+
+        for column in activeCells.keys.filter({ !requiredColumns.contains($0) }) {
+            guard let cell = activeCells.removeValue(forKey: column) else { continue }
+            cell.removeFromSuperview()
+            recycledCells.append(cell)
+        }
+
+        for column in visibleColumns {
+            let cell: VirtualizedGridHeaderCellView
+            if let existing = activeCells[column] {
+                cell = existing
+            } else if let recycled = recycledCells.popLast() {
+                cell = recycled
+                activeCells[column] = cell
+                addSubview(cell)
+            } else {
+                cell = VirtualizedGridHeaderCellView()
+                activeCells[column] = cell
+                addSubview(cell)
+            }
+
+            cell.frame = NSRect(
+                x: CGFloat(column) * Self.columnWidth,
+                y: 0,
+                width: Self.columnWidth,
+                height: bounds.height
+            )
+            cell.stringValue = grid?.title(forColumn: column) ?? ""
+        }
+    }
+
+    private func visibleColumnRange() -> Range<Int> {
+        guard columnCount > 0, visibleRect.width > 0 else { return 0 ..< 0 }
+        let lower = max(0, Int(floor(visibleRect.minX / Self.columnWidth)))
+        let upper = min(columnCount, Int(ceil(visibleRect.maxX / Self.columnWidth)))
+        return lower ..< max(lower, upper)
+    }
+}
+
+private final class VirtualizedGridHeaderCellView: NSTextField {
+    init() {
+        super.init(frame: .zero)
+        isEditable = false
+        isSelectable = false
+        isBordered = false
+        drawsBackground = true
+        backgroundColor = .controlBackgroundColor
+        font = .monospacedSystemFont(ofSize: 12, weight: .semibold)
+        lineBreakMode = .byTruncatingTail
+        cell?.lineBreakMode = .byTruncatingTail
+        wantsLayer = true
+        layer?.borderWidth = 0.5
+        layer?.borderColor = NSColor.separatorColor.cgColor
+        translatesAutoresizingMaskIntoConstraints = true
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 }
 

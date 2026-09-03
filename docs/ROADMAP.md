@@ -64,7 +64,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 ## 5. Virtualized grid
 
 - [x] Implement a native, virtualized AppKit grid.
-- [ ] Keep the header pinned.
+- [x] Keep the header pinned.
 - [ ] Keep row numbers stable.
 - [ ] Make columns resizable.
 - [ ] Load SQLite pages on demand while scrolling.
