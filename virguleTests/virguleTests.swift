@@ -151,6 +151,56 @@ struct virguleTests {
         #expect(quotedColumn.contains("\"total cost\""))
 
     }
+
+    @Test func sqlEditorProvidesQuickHelpForFunctionsAndOperators() {
+        let function = SQLQueryBar.quickHelp(
+            for: "SELECT COUNT(*) FROM csv",
+            selectedRange: NSRange(location: 8, length: 0)
+        )
+        let operation = SQLQueryBar.quickHelp(
+            for: "SELECT total >= 10 FROM csv",
+            selectedRange: NSRange(location: 13, length: 0)
+        )
+
+        #expect(function == SQLQuickHelp(title: "COUNT", detail: "COUNT(expression) returns the number of non-NULL values; COUNT(*) counts rows."))
+        #expect(operation == SQLQuickHelp(title: ">=", detail: "Greater than or equal to."))
+    }
+
+    @Test func sqlEditorKeepsDeDuplicatedExecutionHistory() {
+        let editor = SQLQueryBar()
+        editor.sql = "SELECT name FROM csv"
+        editor.executeQuery()
+        editor.sql = "SELECT COUNT(*) FROM csv"
+        editor.executeQuery()
+        editor.sql = "SELECT name FROM csv"
+        editor.executeQuery()
+
+        #expect(editor.queryHistory == ["SELECT name FROM csv", "SELECT COUNT(*) FROM csv"])
+        #expect(SQLQueryBar.historyTitle(for: String(repeating: "a", count: 73)).hasSuffix("…"))
+    }
+
+    @Test func sqlEditorCopiesQueryAndUsesNativeUndoManager() {
+        let editor = SQLQueryBar()
+        editor.sql = "SELECT name FROM csv"
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("virgule-tests-\(UUID().uuidString)"))
+
+        #expect(editor.copyQuery(to: pasteboard))
+        #expect(pasteboard.string(forType: .string) == "SELECT name FROM csv")
+
+        guard let undoManager = editor.textView.undoManager else {
+            Issue.record("The SQL text editor must provide an undo manager")
+            return
+        }
+        undoManager.registerUndo(withTarget: editor.textView) { textView in
+            let original = textView.string
+            textView.undoManager?.registerUndo(withTarget: textView) { target in target.string = original }
+            textView.string = ""
+        }
+        undoManager.undo()
+        #expect(editor.textView.string.isEmpty)
+        undoManager.redo()
+        #expect(editor.textView.string == "SELECT name FROM csv")
+    }
 }
 
 private final class GridDataSource: VirtualizedGridDataSource {

@@ -6,7 +6,13 @@ import AppKit
 final class SQLQueryBar: NSView, NSTextViewDelegate {
     let textView = SQLQueryTextView()
     private let formatButton = NSButton(title: "Format", target: nil, action: nil)
+    private let undoButton = NSButton(title: "", target: nil, action: nil)
+    private let redoButton = NSButton(title: "", target: nil, action: nil)
+    private let copyButton = NSButton(title: "", target: nil, action: nil)
+    private let historyButton = NSButton(title: "", target: nil, action: nil)
+    private let helpButton = NSButton(title: "?", target: nil, action: nil)
     private let validationLabel = NSTextField(labelWithString: "")
+    private var historyMenu = NSMenu()
 
     /// Invoked with the complete multi-line query when the user presses
     /// Command-Return. The owner can execute it asynchronously without making
@@ -21,6 +27,9 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
     var completionColumns: [String] = []
 
     private(set) var validationMessage: String?
+    /// Most-recent-first, de-duplicated queries executed from this editor.
+    /// It is intentionally kept in memory: CSV views are local and transient.
+    private(set) var queryHistory: [String] = []
 
     var sql: String {
         get { textView.string }
@@ -28,6 +37,7 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
             textView.string = newValue
             highlightSyntax()
             setValidationMessage(nil)
+            updateEditingControls()
         }
     }
 
@@ -79,38 +89,72 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         }
         scrollView.documentView = textView
 
-        formatButton.bezelStyle = .inline
+        configureButton(formatButton, title: "Format", toolTip: "Pretty print SQL (Command-Shift-F)", action: #selector(prettyPrint(_:)))
         formatButton.font = .systemFont(ofSize: 11, weight: .medium)
-        formatButton.toolTip = "Pretty print SQL (Command-Shift-F)"
-        formatButton.target = self
-        formatButton.action = #selector(prettyPrint(_:))
+        configureButton(undoButton, symbol: "arrow.uturn.backward", toolTip: "Undo (Command-Z)", action: #selector(undo(_:)))
+        configureButton(redoButton, symbol: "arrow.uturn.forward", toolTip: "Redo (Command-Shift-Z)", action: #selector(redo(_:)))
+        configureButton(copyButton, symbol: "doc.on.doc", toolTip: "Copy SQL", action: #selector(copyQuery(_:)))
+        configureButton(historyButton, symbol: "clock.arrow.circlepath", toolTip: "Query history", action: #selector(showHistory(_:)))
+        configureButton(helpButton, title: "?", toolTip: "Help for the function or operator at the cursor", action: #selector(showQuickHelp(_:)))
 
         validationLabel.font = .systemFont(ofSize: 11)
         validationLabel.textColor = .systemRed
         validationLabel.lineBreakMode = .byTruncatingTail
         validationLabel.isHidden = true
 
+        let actions = NSStackView(views: [undoButton, redoButton, copyButton, historyButton, helpButton, formatButton])
+        actions.orientation = .horizontal
+        actions.alignment = .centerY
+        actions.spacing = 2
+        actions.translatesAutoresizingMaskIntoConstraints = false
+
         addSubview(scrollView)
-        addSubview(formatButton)
+        addSubview(actions)
         addSubview(validationLabel)
         NSLayoutConstraint.activate([
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: formatButton.leadingAnchor, constant: -4),
+            scrollView.trailingAnchor.constraint(equalTo: actions.leadingAnchor, constant: -4),
             scrollView.topAnchor.constraint(equalTo: topAnchor),
             scrollView.bottomAnchor.constraint(equalTo: validationLabel.topAnchor, constant: -2),
-            formatButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            formatButton.bottomAnchor.constraint(equalTo: validationLabel.topAnchor, constant: -2),
+            actions.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            actions.bottomAnchor.constraint(equalTo: validationLabel.topAnchor, constant: -2),
             validationLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
             validationLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
             validationLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -5),
         ])
         highlightSyntax()
+        updateEditingControls()
+    }
+
+    private func configureButton(_ button: NSButton, title: String? = nil, symbol: String? = nil, toolTip: String, action: Selector) {
+        button.bezelStyle = .inline
+        button.target = self
+        button.action = action
+        button.toolTip = toolTip
+        button.setAccessibilityLabel(toolTip)
+        if let title { button.title = title }
+        if let symbol {
+            button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: toolTip)
+            button.imagePosition = .imageOnly
+        }
+    }
+
+    private func updateEditingControls() {
+        undoButton.isEnabled = textView.undoManager?.canUndo ?? false
+        redoButton.isEnabled = textView.undoManager?.canRedo ?? false
+        copyButton.isEnabled = !sql.isEmpty
+        historyButton.isEnabled = !queryHistory.isEmpty
     }
 
     func textDidChange(_ notification: Notification) {
         highlightSyntax()
         setValidationMessage(nil)
+        updateEditingControls()
         onSQLChanged?(sql)
+    }
+
+    func textViewDidChangeSelection(_ notification: Notification) {
+        updateEditingControls()
     }
 
     /// Supplies AppKit's native completion panel. NSTextView replaces exactly
@@ -132,7 +176,76 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
     /// Runs the editor action. Kept separate from key handling so callers and
     /// tests can invoke the same Command-Return behavior directly.
     func executeQuery() {
+        let query = sql.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+        recordInHistory(query)
         onExecute?(sql)
+    }
+
+    private func recordInHistory(_ query: String) {
+        queryHistory.removeAll { $0 == query }
+        queryHistory.insert(query, at: 0)
+        queryHistory = Array(queryHistory.prefix(20))
+        updateEditingControls()
+    }
+
+    @objc private func undo(_ sender: Any?) {
+        textView.undoManager?.undo()
+        updateEditingControls()
+    }
+
+    @objc private func redo(_ sender: Any?) {
+        textView.undoManager?.redo()
+        updateEditingControls()
+    }
+
+    @objc private func copyQuery(_ sender: Any?) {
+        _ = copyQuery(to: .general)
+    }
+
+    @discardableResult
+    func copyQuery(to pasteboard: NSPasteboard) -> Bool {
+        pasteboard.clearContents()
+        return pasteboard.setString(sql, forType: .string)
+    }
+
+    @objc private func showHistory(_ sender: Any?) {
+        historyMenu.removeAllItems()
+        for query in queryHistory {
+            let item = NSMenuItem(title: Self.historyTitle(for: query), action: #selector(selectHistoryItem(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = query
+            item.toolTip = query
+            historyMenu.addItem(item)
+        }
+        historyMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: historyButton.bounds.maxY), in: historyButton)
+    }
+
+    @objc private func selectHistoryItem(_ sender: NSMenuItem) {
+        guard let query = sender.representedObject as? String else { return }
+        sql = query
+        textView.setSelectedRange(NSRange(location: (query as NSString).length, length: 0))
+        onSQLChanged?(sql)
+    }
+
+    static func historyTitle(for query: String) -> String {
+        let oneLine = query.components(separatedBy: .newlines).joined(separator: " ")
+        return oneLine.count > 72 ? String(oneLine.prefix(69)) + "…" : oneLine
+    }
+
+    @objc private func showQuickHelp(_ sender: Any?) {
+        guard let help = Self.quickHelp(for: sql, selectedRange: textView.selectedRange()) else {
+            NSSound.beep()
+            return
+        }
+        let menu = NSMenu()
+        let title = NSMenuItem(title: help.title, action: nil, keyEquivalent: "")
+        title.isEnabled = false
+        menu.addItem(title)
+        let detail = NSMenuItem(title: help.detail, action: nil, keyEquivalent: "")
+        detail.isEnabled = false
+        menu.addItem(detail)
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: helpButton.bounds.maxY), in: helpButton)
     }
 
     /// Shows the latest asynchronous validation result below the editor. A
@@ -229,6 +342,84 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
                 return partial.isEmpty || comparable.range(of: partial, options: [.caseInsensitive, .anchored]) != nil
             }
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    /// Returns concise SQLite-oriented help for the token under the current
+    /// selection or insertion point. Keeping this pure makes the help content
+    /// available to tests without presenting an AppKit menu.
+    static func quickHelp(for sql: String, selectedRange: NSRange) -> SQLQuickHelp? {
+        let text = sql as NSString
+        guard text.length > 0 else { return nil }
+        let location = min(max(0, selectedRange.location), text.length)
+        let range: NSRange
+        if selectedRange.length > 0, NSMaxRange(selectedRange) <= text.length {
+            range = selectedRange
+        } else {
+            let index = location == text.length ? location - 1 : location
+            let character = text.character(at: index)
+            let wordCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_"))
+            let operatorCharacters = CharacterSet(charactersIn: "=!<>|+-*/%")
+            guard wordCharacters.contains(UnicodeScalar(character)!) || operatorCharacters.contains(UnicodeScalar(character)!) else {
+                return nil
+            }
+            let accepted = wordCharacters.contains(UnicodeScalar(character)!) ? wordCharacters : operatorCharacters
+            var start = index
+            var end = index + 1
+            while start > 0, accepted.contains(UnicodeScalar(text.character(at: start - 1))!) { start -= 1 }
+            while end < text.length, accepted.contains(UnicodeScalar(text.character(at: end))!) { end += 1 }
+            range = NSRange(location: start, length: end - start)
+        }
+        return SQLQuickHelp.lookup(text.substring(with: range))
+    }
+}
+
+struct SQLQuickHelp: Equatable {
+    let title: String
+    let detail: String
+
+    static func lookup(_ rawToken: String) -> SQLQuickHelp? {
+        let token = rawToken.uppercased()
+        let entries: [String: String] = [
+            "COUNT": "COUNT(expression) returns the number of non-NULL values; COUNT(*) counts rows.",
+            "SUM": "SUM(expression) returns the total of numeric values.",
+            "AVG": "AVG(expression) returns the average of numeric values.",
+            "MIN": "MIN(expression) returns the smallest non-NULL value.",
+            "MAX": "MAX(expression) returns the largest non-NULL value.",
+            "COALESCE": "COALESCE(value, fallback, …) returns the first non-NULL argument.",
+            "IFNULL": "IFNULL(value, fallback) returns fallback when value is NULL.",
+            "NULLIF": "NULLIF(a, b) returns NULL when a equals b; otherwise it returns a.",
+            "LOWER": "LOWER(text) converts ASCII letters in text to lower case.",
+            "UPPER": "UPPER(text) converts ASCII letters in text to upper case.",
+            "LENGTH": "LENGTH(value) returns the number of characters in text or bytes in a blob.",
+            "ROUND": "ROUND(number, digits) rounds a number; digits is optional.",
+            "SUBSTR": "SUBSTR(text, start, length) extracts part of text; length is optional.",
+            "CAST": "CAST(value AS type) converts a value to a SQLite storage class.",
+            "DATE": "DATE(value, modifiers…) returns an ISO-8601 date string.",
+            "DATETIME": "DATETIME(value, modifiers…) returns an ISO-8601 date-time string.",
+            "STRFTIME": "STRFTIME(format, value, modifiers…) formats a date or time.",
+            "=": "Equal to.",
+            "!=": "Not equal to.",
+            "<>": "Not equal to.",
+            "<": "Less than.",
+            "<=": "Less than or equal to.",
+            ">": "Greater than.",
+            ">=": "Greater than or equal to.",
+            "||": "Concatenates two text values.",
+            "+": "Adds numeric values.",
+            "-": "Subtracts numeric values.",
+            "*": "Multiplies numeric values; in COUNT(*) it means every row.",
+            "/": "Divides numeric values.",
+            "%": "Returns the integer remainder.",
+            "LIKE": "LIKE compares text against a pattern; % matches many characters and _ one character.",
+            "IN": "IN matches a value against a list or subquery.",
+            "IS": "IS compares values including NULL; use IS NULL or IS NOT NULL.",
+            "BETWEEN": "BETWEEN tests whether a value is within an inclusive range.",
+            "AND": "AND is true only when both conditions are true.",
+            "OR": "OR is true when either condition is true.",
+            "NOT": "NOT negates a condition."
+        ]
+        guard let detail = entries[token] else { return nil }
+        return SQLQuickHelp(title: token, detail: detail)
     }
 }
 
