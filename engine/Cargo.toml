@@ -7,6 +7,9 @@ rust-version = "1.85"
 [lib]
 crate-type = ["staticlib"]
 
+[dependencies]
+rusqlite = { version = "0.37", features = ["bundled"] }
+
 [profile.release]
 lto = "thin"
 codegen-units = 1

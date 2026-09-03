@@ -42,7 +42,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 
 ## 3. SQLite cache and query engine
 
-- [ ] Create a local SQLite cache associated with the source file.
+- [x] Create a local SQLite cache associated with the source file.
 - [ ] Import in one transaction using prepared statements.
 - [ ] Create the `csv` table and retain column metadata.
 - [ ] Expose progress, early preview, completion, and errors through FFI.

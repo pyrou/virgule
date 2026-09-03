@@ -1,8 +1,46 @@
 //! The data engine exposed to the macOS application through a stable C ABI.
 
+use std::path::{Path, PathBuf};
+
+use rusqlite::Connection;
+
 /// Opaque state: its layout is intentionally private to Rust.
 pub struct VirguleEngine {
     _private: (),
+}
+
+/// A local SQLite cache that is distinct from its read-only CSV source file.
+pub struct CsvCache {
+    connection: Connection,
+    path: PathBuf,
+}
+
+impl CsvCache {
+    /// Creates or opens the cache associated with `source_file`.
+    pub fn open_for_source(source_file: &Path) -> rusqlite::Result<Self> {
+        let path = cache_path_for(source_file);
+        let connection = Connection::open(&path)?;
+        Ok(Self { connection, path })
+    }
+
+    /// The SQLite file managed by this cache.
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Provides the cache connection to the importer and query engine.
+    pub fn connection(&self) -> &Connection {
+        &self.connection
+    }
+}
+
+/// Returns a sibling cache path without changing the CSV file or its extension.
+pub fn cache_path_for(source_file: &Path) -> PathBuf {
+    let file_name = source_file
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("csv");
+    source_file.with_file_name(format!("{file_name}.virgule.sqlite"))
 }
 
 /// Delimiters supported by the CSV importer.
@@ -652,6 +690,15 @@ mod tests {
         assert_eq!(
             TextEncodingSelection::Manual(TextEncoding::Utf8).decode(b"\xE9"),
             Err(DecodeError::InvalidUtf8)
+        );
+    }
+
+    #[test]
+    fn cache_path_is_a_sibling_of_the_source_without_replacing_it() {
+        let source = Path::new("/tmp/export.csv");
+        assert_eq!(
+            cache_path_for(source),
+            PathBuf::from("/tmp/export.csv.virgule.sqlite")
         );
     }
 
