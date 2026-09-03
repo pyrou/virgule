@@ -58,8 +58,8 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Add CSV drag and drop.
 - [x] Run imports off the main thread.
 - [x] Show the first rows while the import continues.
-- [ ] Clearly display “Read-only — the source file is not modified.”
-- [ ] Display progress and actionable errors.
+- [x] Clearly display “Read-only — the source file is not modified.”
+- [x] Display progress and actionable errors.
 
 ## 5. Virtualized grid
 
