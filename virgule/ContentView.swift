@@ -138,6 +138,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         loadingPageOffsets = []
         columnCount = 0
         columnTitles = []
+        queryBar.completionColumns = []
         activeQuerySQL = nil
         baseQuerySQL = ""
         baseQueryReadsCSV = false
@@ -183,6 +184,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
                 self.detailLabel.stringValue = "Preparing import (\(event.totalBytes) bytes)…"
             case VIRGULE_IMPORT_HEADERS.rawValue:
                 self.columnTitles = event.values
+                self.queryBar.completionColumns = event.values
                 self.baseQuerySQL = Self.sourceQuery(for: event.values)
                 self.baseQueryReadsCSV = true
                 self.queryBar.sql = self.renderedQuerySQL()

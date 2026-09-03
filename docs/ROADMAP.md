@@ -82,7 +82,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Update readable SQL from sort and filter actions.
 - [x] Add syntax highlighting, indentation, and pretty printing.
 - [x] Add validation while typing with line/column errors.
-- [ ] Add contextual completion for keywords, tables, columns, and functions.
+- [x] Add contextual completion for keywords, tables, columns, and functions.
 - [ ] Add function/operator quick help, undo/redo, history, and copy.
 - [ ] Support SQL calculated columns in the view.
 

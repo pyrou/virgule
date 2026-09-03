@@ -16,6 +16,10 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
     /// and run against the active SQLite cache without blocking typing.
     var onSQLChanged: ((String) -> Void)?
 
+    /// The imported CSV schema. It is kept separate from query result headers
+    /// so completion remains useful while a newly entered query is validated.
+    var completionColumns: [String] = []
+
     private(set) var validationMessage: String?
 
     var sql: String {
@@ -109,6 +113,22 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         onSQLChanged?(sql)
     }
 
+    /// Supplies AppKit's native completion panel. NSTextView replaces exactly
+    /// `partialWordRange`, so quoted source headers remain safe identifiers.
+    func textView(
+        _ textView: NSTextView,
+        completions words: [String],
+        forPartialWordRange charRange: NSRange,
+        indexOfSelectedItem index: UnsafeMutablePointer<Int>?
+    ) -> [String] {
+        index?.pointee = -1
+        return Self.completionCandidates(
+            for: textView.string,
+            cursor: NSMaxRange(charRange),
+            columns: completionColumns
+        )
+    }
+
     /// Runs the editor action. Kept separate from key handling so callers and
     /// tests can invoke the same Command-Return behavior directly.
     func executeQuery() {
@@ -176,6 +196,40 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
     static func prettyPrintedSQL(for sql: String) -> String {
         SQLPrettyPrinter.format(sql)
     }
+
+    /// Returns suggestions appropriate for the word that begins at `cursor`.
+    /// This deliberately uses the SQL preceding the cursor: it is fast enough
+    /// to run for every keypress and does not need to query SQLite on the main
+    /// thread.
+    static func completionCandidates(for sql: String, cursor: Int, columns: [String]) -> [String] {
+        let length = (sql as NSString).length
+        let safeCursor = min(max(0, cursor), length)
+        let prefix = (sql as NSString).substring(to: safeCursor)
+        let wordCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_"))
+        let partial = prefix.components(separatedBy: wordCharacters.inverted).last ?? ""
+        let priorWords = prefix
+            .dropLast(partial.count)
+            .uppercased()
+            .components(separatedBy: wordCharacters.inverted)
+            .filter { !$0.isEmpty }
+        let previous = priorWords.last ?? ""
+
+        let candidates: [String]
+        if ["FROM", "JOIN", "INTO", "UPDATE"].contains(previous) {
+            candidates = ["csv"]
+        } else if partial.uppercased().hasPrefix("EXPL") {
+            candidates = ["EXPLAIN", "EXPLAIN QUERY PLAN"]
+        } else {
+            candidates = SQLCompletion.keywords + SQLCompletion.functions + columns.map(SQLCompletion.identifier)
+        }
+
+        return Array(Set(candidates))
+            .filter {
+                let comparable = $0.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                return partial.isEmpty || comparable.range(of: partial, options: [.caseInsensitive, .anchored]) != nil
+            }
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
 }
 
 /// Preserves Return for multi-line editing while reserving Command-Return for
@@ -195,7 +249,30 @@ final class SQLQueryTextView: NSTextView {
             onFormat?()
             return
         }
+        if modifiers == .control, event.charactersIgnoringModifiers == " " {
+            complete(nil)
+            return
+        }
         super.keyDown(with: event)
+    }
+
+}
+
+private enum SQLCompletion {
+    static let keywords = [
+        "SELECT", "FROM", "WHERE", "AS", "AND", "OR", "NOT", "NULL", "IS", "IN", "LIKE", "BETWEEN",
+        "CASE", "WHEN", "THEN", "ELSE", "END", "JOIN", "INNER", "LEFT", "RIGHT", "OUTER", "ON",
+        "GROUP", "BY", "HAVING", "ORDER", "ASC", "DESC", "LIMIT", "OFFSET", "DISTINCT", "WITH",
+        "UNION", "ALL", "EXPLAIN", "EXPLAIN QUERY PLAN"
+    ]
+    static let functions = [
+        "COUNT", "SUM", "AVG", "MIN", "MAX", "COALESCE", "LOWER", "UPPER", "LENGTH", "ROUND",
+        "SUBSTR", "CAST", "DATE", "DATETIME", "STRFTIME", "IFNULL", "NULLIF"
+    ]
+
+    nonisolated static func identifier(_ name: String) -> String {
+        let simpleIdentifier = name.range(of: "^[A-Za-z_][A-Za-z0-9_]*$", options: .regularExpression) != nil
+        return simpleIdentifier ? name : "\"\(name.replacingOccurrences(of: "\"", with: "\"\""))\""
     }
 }
 

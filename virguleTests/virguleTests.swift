@@ -121,6 +121,36 @@ struct virguleTests {
         editor.setValidationMessage(nil)
         #expect(editor.validationMessage == nil)
     }
+
+    @Test func sqlEditorCompletesTablesOnlyAfterFrom() {
+        let suggestions = SQLQueryBar.completionCandidates(
+            for: "SELECT * FROM c",
+            cursor: 15,
+            columns: ["name", "total cost"]
+        )
+
+        #expect(suggestions == ["csv"])
+    }
+
+    @Test func sqlEditorCompletesKeywordsFunctionsAndQuotedColumns() {
+        let suggestions = SQLQueryBar.completionCandidates(
+            for: "SELECT co",
+            cursor: 9,
+            columns: ["company", "total cost"]
+        )
+
+        #expect(suggestions.contains("company"))
+        #expect(suggestions.contains("COALESCE"))
+        #expect(suggestions.contains("COUNT"))
+
+        let quotedColumn = SQLQueryBar.completionCandidates(
+            for: "SELECT \"to",
+            cursor: 10,
+            columns: ["company", "total cost"]
+        )
+        #expect(quotedColumn.contains("\"total cost\""))
+
+    }
 }
 
 private final class GridDataSource: VirtualizedGridDataSource {
