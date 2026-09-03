@@ -89,8 +89,10 @@ Run the Rust engine tests independently with:
 cargo test --manifest-path engine/Cargo.toml
 ```
 
-The initial AppKit window deliberately contains no file-opening workflow yet;
-that arrives in the AppKit application iteration of the roadmap.
+The initial AppKit window provides a toolbar button and a central button for
+selecting a CSV or TSV file. It also accepts CSV and TSV files dropped onto the
+window. This first UI slice records the selected source only; importing and
+previewing it will follow once the asynchronous import FFI is exposed.
 
 ## Non-goals
 

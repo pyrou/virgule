@@ -16,6 +16,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.title = "Virgule"
         window.isRestorable = false
         window.contentViewController = controller
+        let toolbar = NSToolbar(identifier: "com.fizzup.virgule.main-toolbar")
+        toolbar.displayMode = .iconAndLabel
+        toolbar.delegate = controller
+        window.toolbar = toolbar
+        window.toolbarStyle = .unified
         window.makeKeyAndOrderFront(nil)
         window.setContentSize(NSSize(width: 960, height: 640))
         if let primaryScreen = NSScreen.screens.first {

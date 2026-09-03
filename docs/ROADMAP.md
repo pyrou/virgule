@@ -53,9 +53,9 @@ This checklist is the source of truth for scope. Check an item only after it has
 
 ## 4. AppKit application and file opening
 
-- [ ] Create a native macOS window with a toolbar.
-- [ ] Add a CSV file picker.
-- [ ] Add CSV drag and drop.
+- [x] Create a native macOS window with a toolbar.
+- [x] Add a CSV file picker.
+- [x] Add CSV drag and drop.
 - [ ] Run imports off the main thread.
 - [ ] Show the first rows while the import continues.
 - [ ] Clearly display “Read-only — the source file is not modified.”
