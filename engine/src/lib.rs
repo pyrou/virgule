@@ -47,6 +47,56 @@ pub enum DecodeError {
     InvalidUtf16,
 }
 
+/// How the importer should interpret the first CSV record.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HeaderSelection {
+    /// Infer whether the first record contains column names.
+    Automatic,
+    /// Treat the first record as column names.
+    Present,
+    /// Treat every record as data.
+    Absent,
+}
+
+impl HeaderSelection {
+    /// Resolves the header choice from the first two parsed records.
+    pub fn resolve(self, first_record: &[String], second_record: Option<&[String]>) -> bool {
+        match self {
+            Self::Automatic => looks_like_header(first_record, second_record),
+            Self::Present => true,
+            Self::Absent => false,
+        }
+    }
+}
+
+fn looks_like_header(first_record: &[String], second_record: Option<&[String]>) -> bool {
+    if first_record.is_empty() || first_record.iter().any(|value| value.trim().is_empty()) {
+        return false;
+    }
+    for (index, value) in first_record.iter().enumerate() {
+        if first_record[..index]
+            .iter()
+            .any(|previous| previous.eq_ignore_ascii_case(value))
+        {
+            return false;
+        }
+    }
+    second_record.is_some_and(|record| {
+        record.len() == first_record.len()
+            && record.iter().zip(first_record).any(|(data, name)| {
+                data != name && data_looks_typed(data) && !data_looks_typed(name)
+            })
+    })
+}
+
+fn data_looks_typed(value: &str) -> bool {
+    value.parse::<f64>().is_ok()
+        || matches!(
+            value.to_ascii_lowercase().as_str(),
+            "true" | "false" | "yes" | "no"
+        )
+}
+
 impl TextEncodingSelection {
     /// Decodes bytes using the requested encoding or a conservative detected encoding.
     pub fn decode(self, bytes: &[u8]) -> Result<String, DecodeError> {
@@ -380,6 +430,27 @@ mod tests {
             TextEncodingSelection::Manual(TextEncoding::Utf8).decode(b"\xE9"),
             Err(DecodeError::InvalidUtf8)
         );
+    }
+
+    #[test]
+    fn explicit_header_selection_supports_files_with_and_without_headers() {
+        let first_record = vec!["Ada".to_owned(), "Paris".to_owned()];
+        assert!(HeaderSelection::Present.resolve(&first_record, None));
+        assert!(!HeaderSelection::Absent.resolve(&first_record, None));
+    }
+
+    #[test]
+    fn automatic_header_selection_recognizes_names_followed_by_typed_data() {
+        let header = vec!["name".to_owned(), "active".to_owned(), "age".to_owned()];
+        let data = vec!["Ada".to_owned(), "true".to_owned(), "42".to_owned()];
+        assert!(HeaderSelection::Automatic.resolve(&header, Some(&data)));
+    }
+
+    #[test]
+    fn automatic_header_selection_keeps_ambiguous_text_rows_as_data() {
+        let first_row = vec!["Ada".to_owned(), "Paris".to_owned()];
+        let second_row = vec!["Lin".to_owned(), "Tokyo".to_owned()];
+        assert!(!HeaderSelection::Automatic.resolve(&first_row, Some(&second_row)));
     }
 
     #[test]
