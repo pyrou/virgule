@@ -19,6 +19,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private var loadingPageOffsets = Set<Int>()
     private var columnCount = 0
     private var columnTitles: [String] = []
+    private var activeQuerySQL: String?
+    private var currentViewID = UUID()
     private let pageSize = 256
     private let maximumCachedPages = 8
 
@@ -49,6 +51,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         gridView.isHidden = true
         queryBar.isHidden = true
         queryBar.toolTip = "The SQL for the current read-only CSV view."
+        queryBar.onExecute = { [weak self] sql in self?.executeQuery(sql) }
 
         openButton.bezelStyle = .rounded
         openButton.target = self
@@ -129,6 +132,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         loadingPageOffsets = []
         columnCount = 0
         columnTitles = []
+        activeQuerySQL = nil
+        currentViewID = UUID()
         queryBar.sql = ""
         setGridVisible(false)
         gridView.reloadData()
@@ -236,31 +241,32 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
 
     private func loadPage(at offset: Int, cachePath: String) {
         guard let importID = currentImportID else { return }
+        let viewID = currentViewID
+        let sql = activeQuerySQL
         loadingPageOffsets.insert(offset)
-        let context = Unmanaged.passRetained(PageContext(controller: self, importID: importID, offset: offset))
+        let context = Unmanaged.passRetained(PageContext(controller: self, importID: importID, viewID: viewID, offset: offset))
         DispatchQueue.global(qos: .userInitiated).async {
             defer {
                 context.release()
                 DispatchQueue.main.async { [weak self] in
-                    self?.finishLoadingPage(at: offset, importID: importID)
+                    self?.finishLoadingPage(at: offset, importID: importID, viewID: viewID)
                 }
             }
             _ = cachePath.withCString { path in
-                virgule_engine_read_csv_page(
-                    self.engine,
-                    path,
-                    offset,
-                    self.pageSize,
-                    virgulePageCallback,
-                    context.toOpaque()
-                )
+                if let sql {
+                    sql.withCString { query in
+                        virgule_engine_read_query_page(self.engine, path, query, offset, self.pageSize, virgulePageCallback, context.toOpaque())
+                    }
+                } else {
+                    virgule_engine_read_csv_page(self.engine, path, offset, self.pageSize, virgulePageCallback, context.toOpaque())
+                }
             }
         }
     }
 
-    fileprivate func receivePageRow(_ event: PageRowSnapshot, importID: UUID, offset: Int) {
+    fileprivate func receivePageRow(_ event: PageRowSnapshot, importID: UUID, viewID: UUID, offset: Int) {
         DispatchQueue.main.async { [weak self] in
-            guard let self, self.currentImportID == importID else { return }
+            guard let self, self.currentImportID == importID, self.currentViewID == viewID else { return }
             if let message = event.errorMessage {
                 self.detailLabel.stringValue = "Could not load rows: \(message)"
                 return
@@ -270,8 +276,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         }
     }
 
-    private func finishLoadingPage(at offset: Int, importID: UUID) {
-        guard currentImportID == importID else { return }
+    private func finishLoadingPage(at offset: Int, importID: UUID, viewID: UUID) {
+        guard currentImportID == importID, currentViewID == viewID else { return }
         loadingPageOffsets.remove(offset)
         trimCachedPages(around: offset)
         gridView.reloadData()
@@ -289,6 +295,44 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         controls.isHidden = isVisible
         NSLayoutConstraint.deactivate(isVisible ? emptyStateConstraints : previewStateConstraints)
         NSLayoutConstraint.activate(isVisible ? previewStateConstraints : emptyStateConstraints)
+    }
+
+    private func executeQuery(_ sql: String) {
+        guard let cachePath, let importID = currentImportID else { return }
+        let viewID = UUID()
+        currentViewID = viewID
+        activeQuerySQL = sql
+        cachedRows = [:]
+        loadingPageOffsets = []
+        columnTitles = []
+        importedRowCount = 0
+        detailLabel.stringValue = "Validating query…"
+        gridView.reloadData()
+        let context = Unmanaged.passRetained(QueryContext(controller: self, importID: importID, viewID: viewID))
+        DispatchQueue.global(qos: .userInitiated).async {
+            defer { context.release() }
+            _ = cachePath.withCString { path in
+                sql.withCString { query in
+                    virgule_engine_describe_query(self.engine, path, query, virguleQueryCallback, context.toOpaque())
+                }
+            }
+        }
+    }
+
+    fileprivate func receiveQueryDescription(_ event: ImportEventSnapshot, importID: UUID, viewID: UUID) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.currentImportID == importID, self.currentViewID == viewID else { return }
+            guard event.kind == VIRGULE_IMPORT_HEADERS.rawValue else {
+                self.activeQuerySQL = nil
+                self.detailLabel.stringValue = "Query error: \(event.message)"
+                return
+            }
+            self.columnTitles = event.values
+            self.columnCount = event.values.count
+            self.importedRowCount = event.importedRows
+            self.detailLabel.stringValue = "\(event.importedRows) matching rows"
+            self.gridView.reloadData()
+        }
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -350,12 +394,26 @@ private struct CachedRow {
 private final class PageContext {
     weak var controller: ContentViewController?
     let importID: UUID
+    let viewID: UUID
     let offset: Int
 
-    init(controller: ContentViewController, importID: UUID, offset: Int) {
+    init(controller: ContentViewController, importID: UUID, viewID: UUID, offset: Int) {
         self.controller = controller
         self.importID = importID
+        self.viewID = viewID
         self.offset = offset
+    }
+}
+
+private final class QueryContext {
+    weak var controller: ContentViewController?
+    let importID: UUID
+    let viewID: UUID
+
+    init(controller: ContentViewController, importID: UUID, viewID: UUID) {
+        self.controller = controller
+        self.importID = importID
+        self.viewID = viewID
     }
 }
 
@@ -408,7 +466,24 @@ private let virgulePageCallback: VirgulePageCallback = { row, context in
         } ?? [],
         errorMessage: pageRow.result_row == Int.max ? message : nil
     )
-    pageContext.controller?.receivePageRow(snapshot, importID: pageContext.importID, offset: pageContext.offset)
+    pageContext.controller?.receivePageRow(snapshot, importID: pageContext.importID, viewID: pageContext.viewID, offset: pageContext.offset)
+}
+
+private let virguleQueryCallback: VirguleImportCallback = { event, context in
+    guard let event, let context else { return }
+    let queryContext = Unmanaged<QueryContext>.fromOpaque(context).takeUnretainedValue()
+    let queryEvent = event.pointee
+    let values = queryEvent.values.map { values in
+        (0 ..< Int(queryEvent.value_count)).compactMap { values[$0].map { String(cString: $0) } }
+    } ?? []
+    let snapshot = ImportEventSnapshot(
+        kind: queryEvent.kind,
+        importedRows: queryEvent.imported_rows,
+        totalBytes: queryEvent.total_bytes,
+        values: values,
+        message: queryEvent.message.map { String(cString: $0) } ?? ""
+    )
+    queryContext.controller?.receiveQueryDescription(snapshot, importID: queryContext.importID, viewID: queryContext.viewID)
 }
 
 private extension NSToolbarItem.Identifier {

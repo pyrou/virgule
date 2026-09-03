@@ -78,7 +78,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 
 - [x] Always display the active SQL above the grid.
 - [x] Support multi-line editing and execution with Command-Return.
-- [ ] Immediately reflect valid user SQL in the grid.
+- [x] Immediately reflect valid user SQL in the grid.
 - [ ] Update readable SQL from sort and filter actions.
 - [ ] Add syntax highlighting, indentation, and pretty printing.
 - [ ] Add validation while typing with line/column errors.

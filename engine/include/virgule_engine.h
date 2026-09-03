@@ -76,6 +76,20 @@ int32_t virgule_engine_read_csv_page(
     void *context
 );
 
+/// Metadata for a validated query. `values` contains column names and
+/// `imported_rows` is the total result count. Errors use `message`.
+int32_t virgule_engine_describe_query(
+    VirguleEngine *engine, const char *cache_path, const char *sql,
+    VirguleImportCallback callback, void *context
+);
+
+/// Reads one bounded page of a validated SQL result. Result row numbers refer
+/// to the current view, not necessarily the source CSV order.
+int32_t virgule_engine_read_query_page(
+    VirguleEngine *engine, const char *cache_path, const char *sql,
+    size_t offset, size_t limit, VirgulePageCallback callback, void *context
+);
+
 #ifdef __cplusplus
 }
 #endif

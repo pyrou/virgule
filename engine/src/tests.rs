@@ -377,6 +377,22 @@ fn rejects_write_and_non_query_sql() {
 }
 
 #[test]
+fn describes_and_pages_a_read_only_query() {
+    let connection = Connection::open_in_memory().expect("opens cache");
+    connection.execute_batch("CREATE TABLE csv (name TEXT, age INTEGER); INSERT INTO csv VALUES ('Ada', 42), ('Lin', 35), ('Maya', 29)")
+        .expect("creates fixture");
+    let cache = CsvCache { connection, path: PathBuf::from(":memory:") };
+    let sql = "SELECT name AS person FROM csv WHERE age >= 35 ORDER BY age DESC";
+
+    assert_eq!(cache.describe_query(sql).expect("describes query"), QueryDescription {
+        column_names: vec!["person".to_owned()], row_count: 2,
+    });
+    assert_eq!(cache.read_query_page(sql, 1, 1).expect("reads query page").rows, vec![CsvPageRow {
+        source_row: 2, values: vec!["Lin".to_owned()],
+    }]);
+}
+
+#[test]
 fn rolls_back_the_entire_import_after_a_csv_error() {
     let connection = Connection::open_in_memory().expect("opens in-memory SQLite");
     connection

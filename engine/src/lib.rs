@@ -44,6 +44,15 @@ pub struct CsvPage {
     pub rows: Vec<CsvPageRow>,
 }
 
+/// The bounded, tabular description of a user query.  Result columns are
+/// taken from SQLite rather than the source schema because queries may select
+/// expressions, aliases, or only a subset of the CSV columns.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct QueryDescription {
+    pub column_names: Vec<String>,
+    pub row_count: usize,
+}
+
 /// Why a SQL statement cannot be run against the read-only CSV cache.
 #[derive(Debug)]
 pub enum SqlValidationError {
@@ -155,6 +164,33 @@ impl CsvCache {
                 Ok(CsvPageRow { source_row, values })
             })
             .and_then(Iterator::collect)?;
+        Ok(CsvPage { offset, rows })
+    }
+
+    /// Validates and describes a read-only query without transferring any
+    /// result cells to the UI.  Counting in SQLite keeps the AppKit grid
+    /// virtualized even for a very large filtered result.
+    pub fn describe_query(&self, sql: &str) -> Result<QueryDescription, SqlValidationError> {
+        self.validate_query(sql)?;
+        let statement = self.connection.prepare(sql).map_err(SqlValidationError::Invalid)?;
+        let column_names = statement.column_names().iter().map(ToString::to_string).collect();
+        let count_sql = format!("SELECT COUNT(*) FROM ({})", sql.trim_end_matches(';'));
+        let row_count = self.connection.query_row(&count_sql, [], |row| row.get(0))
+            .map_err(SqlValidationError::Invalid)?;
+        Ok(QueryDescription { column_names, row_count })
+    }
+
+    /// Executes only one result page of a previously described user query.
+    pub fn read_query_page(&self, sql: &str, offset: usize, limit: usize) -> rusqlite::Result<CsvPage> {
+        let paged_sql = format!("SELECT * FROM ({}) LIMIT ?1 OFFSET ?2", sql.trim_end_matches(';'));
+        let mut statement = self.connection.prepare(&paged_sql)?;
+        let column_count = statement.column_count();
+        let rows = statement.query_map((limit, offset), |row| {
+            let values = (0..column_count)
+                .map(|index| sqlite_value_to_string(row.get_ref(index)?))
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(CsvPageRow { source_row: (offset + 1) as i64, values })
+        }).and_then(Iterator::collect)?;
         Ok(CsvPage { offset, rows })
     }
 
