@@ -66,7 +66,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Implement a native, virtualized AppKit grid.
 - [x] Keep the header pinned.
 - [ ] Keep row numbers stable.
-- [ ] Make columns resizable.
+- [x] Make columns resizable.
 - [ ] Load SQLite pages on demand while scrolling.
 - [ ] Reuse visible row/cell views.
 - [ ] Verify that no cells are created for off-screen rows.

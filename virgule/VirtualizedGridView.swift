@@ -28,6 +28,7 @@ final class VirtualizedGridView: NSView {
     private let documentView = VirtualizedGridDocumentView()
     private let headerClipView = NSClipView()
     private let headerDocumentView = VirtualizedGridHeaderDocumentView()
+    private let columnLayout = VirtualizedGridColumnLayout()
     private var boundsObserver: NSObjectProtocol?
 
     /// Useful for UI tests and diagnostics: this count is bounded by the
@@ -50,6 +51,10 @@ final class VirtualizedGridView: NSView {
         headerClipView.drawsBackground = false
         headerClipView.documentView = headerDocumentView
         headerDocumentView.grid = self
+        headerDocumentView.columnLayout = columnLayout
+        headerDocumentView.resizeColumn = { [weak self] column, width in
+            self?.setWidth(width, forColumn: column)
+        }
 
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
@@ -59,6 +64,7 @@ final class VirtualizedGridView: NSView {
         scrollView.contentView.postsBoundsChangedNotifications = true
         scrollView.documentView = documentView
         documentView.grid = self
+        documentView.columnLayout = columnLayout
 
         addSubview(headerClipView)
         addSubview(scrollView)
@@ -112,6 +118,7 @@ final class VirtualizedGridView: NSView {
     private func updateDocumentMetrics() {
         let rows = max(0, dataSource?.numberOfRows(in: self) ?? 0)
         let columns = max(0, dataSource?.numberOfColumns(in: self) ?? 0)
+        columnLayout.updateColumnCount(columns)
         documentView.updateMetrics(
             rowCount: rows,
             columnCount: columns,
@@ -121,12 +128,83 @@ final class VirtualizedGridView: NSView {
         refreshVisibleViews()
     }
 
+    private func setWidth(_ width: CGFloat, forColumn column: Int) {
+        guard columnLayout.setWidth(width, forColumn: column) else { return }
+        updateDocumentMetrics()
+    }
+
     private static let headerHeight: CGFloat = 24
+}
+
+/// Shared geometry for the document and the pinned header. Keeping this in one
+/// place means a resized column has exactly the same bounds in both views.
+private final class VirtualizedGridColumnLayout {
+    private static let defaultWidth: CGFloat = 160
+    private static let minimumWidth: CGFloat = 60
+    private var widths: [CGFloat] = []
+    private var offsets: [CGFloat] = [0]
+
+    var totalWidth: CGFloat { offsets.last ?? 0 }
+
+    func updateColumnCount(_ count: Int) {
+        if widths.count < count {
+            widths.append(contentsOf: repeatElement(Self.defaultWidth, count: count - widths.count))
+        } else if widths.count > count {
+            widths.removeLast(widths.count - count)
+        }
+        rebuildOffsets()
+    }
+
+    func width(forColumn column: Int) -> CGFloat {
+        widths.indices.contains(column) ? widths[column] : Self.defaultWidth
+    }
+
+    func xOffset(forColumn column: Int) -> CGFloat {
+        guard column > 0 else { return 0 }
+        return offsets[min(column, widths.count)]
+    }
+
+    func setWidth(_ width: CGFloat, forColumn column: Int) -> Bool {
+        guard widths.indices.contains(column) else { return false }
+        let clampedWidth = max(Self.minimumWidth, width)
+        guard widths[column] != clampedWidth else { return false }
+        widths[column] = clampedWidth
+        rebuildOffsets()
+        return true
+    }
+
+    func visibleColumnRange(in rect: NSRect) -> Range<Int> {
+        guard !widths.isEmpty, rect.width > 0 else { return 0 ..< 0 }
+        let first = column(at: max(0, rect.minX))
+        let last = column(at: max(0, rect.maxX - 1))
+        return first ..< min(widths.count, last + 1)
+    }
+
+    private func column(at x: CGFloat) -> Int {
+        var low = 0
+        var high = widths.count
+        while low < high {
+            let middle = (low + high) / 2
+            if offsets[middle + 1] <= x {
+                low = middle + 1
+            } else {
+                high = middle
+            }
+        }
+        return min(low, max(0, widths.count - 1))
+    }
+
+    private func rebuildOffsets() {
+        offsets = [0]
+        offsets.reserveCapacity(widths.count + 1)
+        for width in widths {
+            offsets.append((offsets.last ?? 0) + width)
+        }
+    }
 }
 
 private final class VirtualizedGridDocumentView: NSView {
     private static let rowHeight: CGFloat = 24
-    private static let columnWidth: CGFloat = 160
 
     private var rowCount = 0
     private var columnCount = 0
@@ -134,6 +212,9 @@ private final class VirtualizedGridDocumentView: NSView {
     private var recycledRows: [VirtualizedGridRowView] = []
 
     weak var grid: VirtualizedGridView? {
+        didSet { refreshVisibleViews() }
+    }
+    var columnLayout: VirtualizedGridColumnLayout? {
         didSet { refreshVisibleViews() }
     }
 
@@ -145,7 +226,7 @@ private final class VirtualizedGridDocumentView: NSView {
     func updateMetrics(rowCount: Int, columnCount: Int, viewportWidth: CGFloat) {
         self.rowCount = rowCount
         self.columnCount = columnCount
-        let contentWidth = max(viewportWidth, CGFloat(columnCount) * Self.columnWidth)
+        let contentWidth = max(viewportWidth, columnLayout?.totalWidth ?? 0)
         frame = NSRect(
             x: 0,
             y: 0,
@@ -191,7 +272,7 @@ private final class VirtualizedGridDocumentView: NSView {
             rowView.configure(
                 row: row,
                 columns: visibleColumns,
-                columnWidth: Self.columnWidth,
+                columnLayout: columnLayout,
                 value: { [weak self] row, column in
                     self?.grid?.value(forRow: row, column: column) ?? ""
                 }
@@ -207,15 +288,12 @@ private final class VirtualizedGridDocumentView: NSView {
     }
 
     private func visibleColumnRange() -> Range<Int> {
-        guard columnCount > 0, visibleRect.width > 0 else { return 0 ..< 0 }
-        let lower = max(0, Int(floor(visibleRect.minX / Self.columnWidth)))
-        let upper = min(columnCount, Int(ceil(visibleRect.maxX / Self.columnWidth)))
-        return lower ..< max(lower, upper)
+        guard columnCount > 0 else { return 0 ..< 0 }
+        return columnLayout?.visibleColumnRange(in: visibleRect) ?? (0 ..< 0)
     }
 }
 
 private final class VirtualizedGridHeaderDocumentView: NSView {
-    private static let columnWidth: CGFloat = 160
     private static let headerHeight: CGFloat = 24
 
     private var columnCount = 0
@@ -225,6 +303,10 @@ private final class VirtualizedGridHeaderDocumentView: NSView {
     weak var grid: VirtualizedGridView? {
         didSet { refreshVisibleViews() }
     }
+    var columnLayout: VirtualizedGridColumnLayout? {
+        didSet { refreshVisibleViews() }
+    }
+    var resizeColumn: ((Int, CGFloat) -> Void)?
 
     override var isFlipped: Bool { true }
 
@@ -259,24 +341,28 @@ private final class VirtualizedGridHeaderDocumentView: NSView {
             }
 
             cell.frame = NSRect(
-                x: CGFloat(column) * Self.columnWidth,
+                x: columnLayout?.xOffset(forColumn: column) ?? 0,
                 y: 0,
-                width: Self.columnWidth,
+                width: columnLayout?.width(forColumn: column) ?? 0,
                 height: bounds.height
             )
             cell.stringValue = grid?.title(forColumn: column) ?? ""
+            cell.column = column
+            cell.resizeColumn = resizeColumn
         }
     }
 
     private func visibleColumnRange() -> Range<Int> {
-        guard columnCount > 0, visibleRect.width > 0 else { return 0 ..< 0 }
-        let lower = max(0, Int(floor(visibleRect.minX / Self.columnWidth)))
-        let upper = min(columnCount, Int(ceil(visibleRect.maxX / Self.columnWidth)))
-        return lower ..< max(lower, upper)
+        guard columnCount > 0 else { return 0 ..< 0 }
+        return columnLayout?.visibleColumnRange(in: visibleRect) ?? (0 ..< 0)
     }
 }
 
 private final class VirtualizedGridHeaderCellView: NSTextField {
+    private static let resizeHandleWidth: CGFloat = 8
+    var column = 0
+    var resizeColumn: ((Int, CGFloat) -> Void)?
+
     init() {
         super.init(frame: .zero)
         isEditable = false
@@ -296,6 +382,36 @@ private final class VirtualizedGridHeaderCellView: NSTextField {
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        addCursorRect(
+            NSRect(x: bounds.maxX - Self.resizeHandleWidth, y: 0, width: Self.resizeHandleWidth, height: bounds.height),
+            cursor: .resizeLeftRight
+        )
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        guard point.x >= bounds.maxX - Self.resizeHandleWidth else {
+            super.mouseDown(with: event)
+            return
+        }
+
+        let initialWidth = bounds.width
+        let initialX = event.locationInWindow.x
+        var tracking = true
+        while tracking, let nextEvent = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {
+            switch nextEvent.type {
+            case .leftMouseDragged:
+                resizeColumn?(column, initialWidth + nextEvent.locationInWindow.x - initialX)
+            case .leftMouseUp:
+                tracking = false
+            default:
+                break
+            }
+        }
+    }
 }
 
 private final class VirtualizedGridRowView: NSView {
@@ -309,7 +425,7 @@ private final class VirtualizedGridRowView: NSView {
     func configure(
         row: Int,
         columns: Range<Int>,
-        columnWidth: CGFloat,
+        columnLayout: VirtualizedGridColumnLayout?,
         value: (Int, Int) -> String
     ) {
         let requiredColumns = Set(columns)
@@ -333,7 +449,12 @@ private final class VirtualizedGridRowView: NSView {
                 activeCells[column] = cell
                 addSubview(cell)
             }
-            cell.frame = NSRect(x: CGFloat(column) * columnWidth, y: 0, width: columnWidth, height: bounds.height)
+            cell.frame = NSRect(
+                x: columnLayout?.xOffset(forColumn: column) ?? 0,
+                y: 0,
+                width: columnLayout?.width(forColumn: column) ?? 0,
+                height: bounds.height
+            )
             cell.stringValue = value(row, column)
         }
     }
