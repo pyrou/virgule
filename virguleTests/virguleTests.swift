@@ -29,6 +29,16 @@ struct virguleTests {
         #expect(grid.visibleRowViewCount < dataSource.rows)
         #expect(grid.visibleCellViewCount < totalCells)
     }
+
+    @Test func sqlEditorHighlightsKeywordsAndComments() {
+        let sql = "SELECT COUNT(*) FROM csv -- all rows"
+        let highlighted = SQLQueryBar.highlightedText(for: sql)
+        let selectRange = (sql as NSString).range(of: "SELECT")
+        let commentRange = (sql as NSString).range(of: "-- all rows")
+
+        #expect(highlighted.attribute(.foregroundColor, at: selectRange.location, effectiveRange: nil) as? NSColor == .systemPurple)
+        #expect(highlighted.attribute(.foregroundColor, at: commentRange.location, effectiveRange: nil) as? NSColor == .secondaryLabelColor)
+    }
 }
 
 private final class GridDataSource: VirtualizedGridDataSource {

@@ -6,6 +6,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private let titleLabel = NSTextField(labelWithString: "Open a CSV file to begin")
     private let detailLabel = NSTextField(wrappingLabelWithString: "Choose a CSV file or drag one into this window.")
     private let gridView = VirtualizedGridView()
+    private let queryBar = SQLQueryBar()
     private let openButton = NSButton(title: "Open CSV…", target: nil, action: nil)
     private let controls = NSStackView()
     private var emptyStateConstraints: [NSLayoutConstraint] = []
@@ -46,6 +47,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
 
         gridView.dataSource = self
         gridView.isHidden = true
+        queryBar.isHidden = true
+        queryBar.toolTip = "The SQL for the current read-only CSV view."
 
         openButton.bezelStyle = .rounded
         openButton.target = self
@@ -60,9 +63,11 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
 
         dropView.addSubview(windowHeaderMaterial)
         dropView.addSubview(controls)
+        dropView.addSubview(queryBar)
         dropView.addSubview(gridView)
         windowHeaderMaterial.translatesAutoresizingMaskIntoConstraints = false
         controls.translatesAutoresizingMaskIntoConstraints = false
+        queryBar.translatesAutoresizingMaskIntoConstraints = false
         gridView.translatesAutoresizingMaskIntoConstraints = false
 
         emptyStateConstraints = [
@@ -70,7 +75,11 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
             controls.centerYAnchor.constraint(equalTo: dropView.centerYAnchor),
         ]
         previewStateConstraints = [
-            gridView.topAnchor.constraint(equalTo: dropView.safeAreaLayoutGuide.topAnchor),
+            queryBar.topAnchor.constraint(equalTo: dropView.safeAreaLayoutGuide.topAnchor, constant: 12),
+            queryBar.leadingAnchor.constraint(equalTo: dropView.leadingAnchor, constant: 16),
+            queryBar.trailingAnchor.constraint(equalTo: dropView.trailingAnchor, constant: -16),
+            queryBar.heightAnchor.constraint(equalToConstant: 78),
+            gridView.topAnchor.constraint(equalTo: queryBar.bottomAnchor, constant: 12),
             gridView.leadingAnchor.constraint(equalTo: dropView.leadingAnchor),
             gridView.trailingAnchor.constraint(equalTo: dropView.trailingAnchor),
             gridView.bottomAnchor.constraint(equalTo: dropView.bottomAnchor),
@@ -120,6 +129,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         loadingPageOffsets = []
         columnCount = 0
         columnTitles = []
+        queryBar.sql = ""
         setGridVisible(false)
         gridView.reloadData()
         titleLabel.stringValue = "Importing \(url.lastPathComponent)…"
@@ -157,6 +167,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
                 self.detailLabel.stringValue = "Preparing import (\(event.totalBytes) bytes)…"
             case VIRGULE_IMPORT_HEADERS.rawValue:
                 self.columnTitles = event.values
+                self.queryBar.sql = Self.defaultSQL
                 self.gridView.reloadData()
             case VIRGULE_IMPORT_PREVIEW.rawValue:
                 self.detailLabel.stringValue = "Reading rows…"
@@ -274,6 +285,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
 
     private func setGridVisible(_ isVisible: Bool) {
         gridView.isHidden = !isVisible
+        queryBar.isHidden = !isVisible
         controls.isHidden = isVisible
         NSLayoutConstraint.deactivate(isVisible ? emptyStateConstraints : previewStateConstraints)
         NSLayoutConstraint.activate(isVisible ? previewStateConstraints : emptyStateConstraints)
@@ -312,6 +324,12 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private static func isCSV(_ url: URL) -> Bool {
         ["csv", "tsv"].contains(url.pathExtension.lowercased())
     }
+
+    private static let defaultSQL = """
+    SELECT *
+    FROM csv
+    ORDER BY rowid
+    """
 }
 
 private final class ImportContext {

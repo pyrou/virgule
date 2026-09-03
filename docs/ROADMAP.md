@@ -76,7 +76,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 
 ## 6. SQL query bar
 
-- [ ] Always display the active SQL above the grid.
+- [x] Always display the active SQL above the grid.
 - [ ] Support multi-line editing and execution with Command-Return.
 - [ ] Immediately reflect valid user SQL in the grid.
 - [ ] Update readable SQL from sort and filter actions.
