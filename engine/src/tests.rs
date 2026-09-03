@@ -208,12 +208,12 @@ fn reads_only_the_requested_csv_page_with_stable_row_numbers() {
         }])
         .expect("creates CSV table");
     cache
-        .import_records(
-            "csv",
+        .import_csv_records_with_progress(
             1,
             ["Ada", "Lin", "Maya", "Noah"]
                 .into_iter()
                 .map(|name| Ok(vec![name.to_owned()])),
+            |_| {},
         )
         .expect("imports rows");
 
@@ -239,6 +239,57 @@ fn reads_only_the_requested_csv_page_with_stable_row_numbers() {
             .expect("reads final page")
             .rows
             .is_empty()
+    );
+}
+
+#[test]
+fn preserves_order_when_a_csv_header_is_named_rowid() {
+    let connection = Connection::open_in_memory().expect("opens in-memory cache");
+    let mut cache = CsvCache {
+        connection,
+        path: PathBuf::from(":memory:"),
+    };
+    let columns = cache
+        .create_csv_table([
+            CsvColumn {
+                source_name: "rowid".to_owned(),
+                column_type: ColumnType::Text,
+            },
+            CsvColumn {
+                source_name: "__virgule_row_id".to_owned(),
+                column_type: ColumnType::Text,
+            },
+        ])
+        .expect("creates CSV schema with colliding headers");
+    assert_eq!(columns[0].sql_name, "rowid");
+    assert_eq!(columns[1].sql_name, "__virgule_row_id_2");
+
+    cache
+        .import_csv_records_with_progress(
+            2,
+            [
+                Ok(vec!["user row id 2".to_owned(), "first".to_owned()]),
+                Ok(vec!["user row id 1".to_owned(), "second".to_owned()]),
+            ],
+            |_| {},
+        )
+        .expect("imports records without shadowing the engine key");
+
+    assert_eq!(
+        cache.read_csv_page(0, 2).expect("reads ordered page"),
+        CsvPage {
+            offset: 0,
+            rows: vec![
+                CsvPageRow {
+                    source_row: 1,
+                    values: vec!["user row id 2".to_owned(), "first".to_owned()],
+                },
+                CsvPageRow {
+                    source_row: 2,
+                    values: vec!["user row id 1".to_owned(), "second".to_owned()],
+                },
+            ],
+        }
     );
 }
 
@@ -420,6 +471,7 @@ fn creates_the_csv_table_and_retains_column_metadata() {
     assert_eq!(
         types,
         vec![
+            ("__virgule_row_id".to_owned(), "INTEGER".to_owned()),
             ("Name".to_owned(), "TEXT".to_owned()),
             ("Age".to_owned(), "INTEGER".to_owned()),
             ("Created at".to_owned(), "TEXT".to_owned()),
@@ -486,14 +538,14 @@ fn makes_empty_and_duplicate_headers_queryable_without_losing_the_source_labels(
         vec!["column_1", "name", "name_2"]
     );
     cache
-        .import_records(
-            "csv",
+        .import_csv_records_with_progress(
             3,
             vec![Ok(vec![
                 "Ada".to_owned(),
                 "first".to_owned(),
                 "second".to_owned(),
             ])],
+            |_| {},
         )
         .expect("imports using generated names");
     let row: (String, String, String) = cache

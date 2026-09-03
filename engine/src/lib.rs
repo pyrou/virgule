@@ -16,6 +16,9 @@ pub struct VirguleEngine {
 }
 
 const PROGRESS_ROW_INTERVAL: usize = 1_000;
+/// Reserved engine-owned key for stable import order. Unlike SQLite's `rowid`
+/// aliases, a source header cannot shadow this identifier.
+const INTERNAL_ROW_ID: &str = "__virgule_row_id";
 
 mod importer;
 
@@ -130,9 +133,18 @@ impl CsvCache {
     /// Loads exactly one bounded page from `csv`, never materializing the full
     /// result set for the AppKit host.
     pub fn read_csv_page(&self, offset: usize, limit: usize) -> rusqlite::Result<CsvPage> {
+        let source_columns = self.csv_column_names()?;
+        let selected_columns = source_columns
+            .iter()
+            .map(|name| quote_identifier(name))
+            .collect::<Vec<_>>()
+            .join(", ");
         let mut statement = self
             .connection
-            .prepare("SELECT rowid, * FROM csv ORDER BY rowid LIMIT ?1 OFFSET ?2")?;
+            .prepare(&format!(
+                "SELECT {key}, {selected_columns} FROM csv ORDER BY {key} LIMIT ?1 OFFSET ?2",
+                key = quote_identifier(INTERNAL_ROW_ID),
+            ))?;
         let column_count = statement.column_count();
         let rows = statement
             .query_map((limit, offset), |row| {
@@ -144,6 +156,13 @@ impl CsvCache {
             })
             .and_then(Iterator::collect)?;
         Ok(CsvPage { offset, rows })
+    }
+
+    fn csv_column_names(&self) -> rusqlite::Result<Vec<String>> {
+        self.connection
+            .prepare("SELECT sql_name FROM csv_columns ORDER BY ordinal")?
+            .query_map([], |row| row.get(0))?
+            .collect()
     }
 
     /// Imports parsed records into an existing table as one all-or-nothing SQLite
@@ -168,6 +187,27 @@ impl CsvCache {
         table_name: &str,
         column_count: usize,
         records: I,
+        report_progress: F,
+    ) -> Result<usize, ImportError>
+    where
+        I: IntoIterator<Item = Result<Vec<String>, CsvParseError>>,
+        F: FnMut(usize),
+    {
+        self.import_records_with_progress_for_columns(
+            table_name,
+            &[],
+            column_count,
+            records,
+            report_progress,
+        )
+    }
+
+    fn import_records_with_progress_for_columns<I, F>(
+        &mut self,
+        table_name: &str,
+        columns: &[String],
+        column_count: usize,
+        records: I,
         mut report_progress: F,
     ) -> Result<usize, ImportError>
     where
@@ -178,11 +218,21 @@ impl CsvCache {
             return Err(ImportError::NoColumns);
         }
         let table_name = quote_identifier(table_name);
+        let column_list = (!columns.is_empty()).then(|| {
+            columns
+                .iter()
+                .map(|name| quote_identifier(name))
+                .collect::<Vec<_>>()
+                .join(", ")
+        });
         let placeholders = (1..=column_count)
             .map(|index| format!("?{index}"))
             .collect::<Vec<_>>()
             .join(", ");
-        let sql = format!("INSERT INTO {table_name} VALUES ({placeholders})");
+        let sql = match column_list {
+            Some(column_list) => format!("INSERT INTO {table_name} ({column_list}) VALUES ({placeholders})"),
+            None => format!("INSERT INTO {table_name} VALUES ({placeholders})"),
+        };
         let transaction = self.connection.transaction()?;
         let mut statement = transaction.prepare(&sql)?;
         let mut imported_rows = 0;
@@ -204,6 +254,27 @@ impl CsvCache {
         drop(statement);
         transaction.commit()?;
         Ok(imported_rows)
+    }
+
+    fn import_csv_records_with_progress<I, F>(
+        &mut self,
+        column_count: usize,
+        records: I,
+        report_progress: F,
+    ) -> Result<usize, ImportError>
+    where
+        I: IntoIterator<Item = Result<Vec<String>, CsvParseError>>,
+        F: FnMut(usize),
+    {
+        let columns = self.csv_column_names()?;
+        debug_assert_eq!(columns.len(), column_count);
+        self.import_records_with_progress_for_columns(
+            "csv",
+            &columns,
+            column_count,
+            records,
+            report_progress,
+        )
     }
 
     /// Recreates the `csv` view table and its column metadata for one import.
@@ -237,7 +308,10 @@ impl CsvCache {
                  inferred_type TEXT NOT NULL\
              );",
         )?;
-        transaction.execute_batch(&format!("CREATE TABLE csv ({column_definitions})"))?;
+        transaction.execute_batch(&format!(
+            "CREATE TABLE csv ({} INTEGER PRIMARY KEY, {column_definitions})",
+            quote_identifier(INTERNAL_ROW_ID),
+        ))?;
         let mut statement = transaction.prepare(
             "INSERT INTO csv_columns (ordinal, source_name, sql_name, inferred_type) \
              VALUES (?1, ?2, ?3, ?4)",
@@ -428,9 +502,10 @@ fn unique_sql_name(source_name: &str, ordinal: usize, existing_names: &[String])
     } else {
         source_name.to_owned()
     };
-    if !existing_names
-        .iter()
-        .any(|name| name.eq_ignore_ascii_case(&base_name))
+    if !is_reserved_sql_name(&base_name)
+        && !existing_names
+            .iter()
+            .any(|name| name.eq_ignore_ascii_case(&base_name))
     {
         return base_name;
     }
@@ -438,14 +513,19 @@ fn unique_sql_name(source_name: &str, ordinal: usize, existing_names: &[String])
     let mut suffix = 2;
     loop {
         let candidate = format!("{base_name}_{suffix}");
-        if !existing_names
-            .iter()
-            .any(|name| name.eq_ignore_ascii_case(&candidate))
+        if !is_reserved_sql_name(&candidate)
+            && !existing_names
+                .iter()
+                .any(|name| name.eq_ignore_ascii_case(&candidate))
         {
             return candidate;
         }
         suffix += 1;
     }
+}
+
+fn is_reserved_sql_name(name: &str) -> bool {
+    name.eq_ignore_ascii_case(INTERNAL_ROW_ID)
 }
 
 fn sqlite_type_for(column_type: ColumnType) -> &'static str {

@@ -328,7 +328,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private static let defaultSQL = """
     SELECT *
     FROM csv
-    ORDER BY rowid
+    ORDER BY "__virgule_row_id"
     """
 }
 

@@ -117,6 +117,9 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         apply("'(?:''|[^'])*'|\\\"(?:\\\"\\\"|[^\\\"])*\\\"", .systemRed)
         apply("\\b\\d+(?:\\.\\d+)?\\b", .systemOrange)
         apply("--[^\\n]*|/\\*[\\s\\S]*?\\*/", .secondaryLabelColor)
+        // The muted colour separates the engine's ordering key from source
+        // columns, which retain the normal identifier/string appearance.
+        apply("\\\"__virgule_row_id\\\"", .tertiaryLabelColor)
         return result
     }
 }

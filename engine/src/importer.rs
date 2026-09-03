@@ -90,8 +90,7 @@ pub fn import_source_file(
     });
     let mut cache = CsvCache::open_for_source(source_file, cache_directory)?;
     cache.create_csv_table(columns)?;
-    let imported_rows = cache.import_records_with_progress(
-        "csv",
+    let imported_rows = cache.import_csv_records_with_progress(
         headers.len(),
         data.into_iter().map(Ok),
         |rows| {
