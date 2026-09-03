@@ -7,6 +7,9 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private let detailLabel = NSTextField(wrappingLabelWithString: "Choose a CSV file or drag one into this window.")
     private let gridView = VirtualizedGridView()
     private let openButton = NSButton(title: "Open CSV…", target: nil, action: nil)
+    private let controls = NSStackView()
+    private var emptyStateConstraints: [NSLayoutConstraint] = []
+    private var previewStateConstraints: [NSLayoutConstraint] = []
     private var currentImportID: UUID?
     private var previewRows: [[String]] = []
 
@@ -41,28 +44,36 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         readOnlyLabel.textColor = .secondaryLabelColor
         readOnlyLabel.alignment = .center
 
-        let controls = NSStackView(views: [titleLabel, detailLabel, openButton, readOnlyLabel])
+        controls.addArrangedSubview(titleLabel)
+        controls.addArrangedSubview(detailLabel)
+        controls.addArrangedSubview(openButton)
+        controls.addArrangedSubview(readOnlyLabel)
         controls.orientation = .vertical
         controls.alignment = .centerX
         controls.spacing = 12
 
-        let stack = NSStackView(views: [controls, gridView])
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 12
+        dropView.addSubview(controls)
+        dropView.addSubview(gridView)
+        controls.translatesAutoresizingMaskIntoConstraints = false
+        gridView.translatesAutoresizingMaskIntoConstraints = false
 
-        dropView.addSubview(stack)
-        stack.translatesAutoresizingMaskIntoConstraints = false
+        emptyStateConstraints = [
+            controls.centerXAnchor.constraint(equalTo: dropView.centerXAnchor),
+            controls.centerYAnchor.constraint(equalTo: dropView.centerYAnchor),
+        ]
+        previewStateConstraints = [
+            controls.centerXAnchor.constraint(equalTo: dropView.centerXAnchor),
+            controls.topAnchor.constraint(equalTo: dropView.topAnchor, constant: 32),
+            gridView.topAnchor.constraint(equalTo: controls.bottomAnchor, constant: 12),
+            gridView.leadingAnchor.constraint(equalTo: dropView.leadingAnchor, constant: 40),
+            gridView.trailingAnchor.constraint(equalTo: dropView.trailingAnchor, constant: -40),
+            gridView.bottomAnchor.constraint(equalTo: dropView.bottomAnchor, constant: -32),
+        ]
         NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: dropView.centerXAnchor),
-            stack.topAnchor.constraint(equalTo: dropView.topAnchor, constant: 32),
-            stack.leadingAnchor.constraint(equalTo: dropView.leadingAnchor, constant: 40),
-            stack.trailingAnchor.constraint(equalTo: dropView.trailingAnchor, constant: -40),
-            stack.bottomAnchor.constraint(equalTo: dropView.bottomAnchor, constant: -32),
-            detailLabel.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor),
-            gridView.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            detailLabel.widthAnchor.constraint(lessThanOrEqualTo: dropView.widthAnchor, constant: -80),
             gridView.heightAnchor.constraint(greaterThanOrEqualToConstant: 220),
         ])
+        NSLayoutConstraint.activate(emptyStateConstraints)
         view = dropView
     }
 
@@ -93,7 +104,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         let importID = UUID()
         currentImportID = importID
         previewRows = []
-        gridView.isHidden = true
+        setGridVisible(false)
         gridView.reloadData()
         titleLabel.stringValue = "Importing \(url.lastPathComponent)…"
         detailLabel.stringValue = url.path
@@ -132,7 +143,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
                 self.detailLabel.stringValue = "Reading rows…"
                 if self.previewRows.count < 5 {
                     self.previewRows.append(event.values)
-                    self.gridView.isHidden = false
+                    self.setGridVisible(true)
                     self.gridView.reloadData()
                 }
             case VIRGULE_IMPORT_PROGRESS.rawValue:
@@ -163,6 +174,12 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
 
     func grid(_ grid: VirtualizedGridView, valueForRow row: Int, column: Int) -> String {
         previewRows[row].indices.contains(column) ? previewRows[row][column] : ""
+    }
+
+    private func setGridVisible(_ isVisible: Bool) {
+        gridView.isHidden = !isVisible
+        NSLayoutConstraint.deactivate(isVisible ? emptyStateConstraints : previewStateConstraints)
+        NSLayoutConstraint.activate(isVisible ? previewStateConstraints : emptyStateConstraints)
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
