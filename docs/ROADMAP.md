@@ -80,7 +80,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Support multi-line editing and execution with Command-Return.
 - [x] Immediately reflect valid user SQL in the grid.
 - [x] Update readable SQL from sort and filter actions.
-- [ ] Add syntax highlighting, indentation, and pretty printing.
+- [x] Add syntax highlighting, indentation, and pretty printing.
 - [ ] Add validation while typing with line/column errors.
 - [ ] Add contextual completion for keywords, tables, columns, and functions.
 - [ ] Add function/operator quick help, undo/redo, history, and copy.

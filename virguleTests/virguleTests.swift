@@ -62,6 +62,40 @@ struct virguleTests {
         #expect(highlighted.attribute(.foregroundColor, at: commentRange.location, effectiveRange: nil) as? NSColor == .secondaryLabelColor)
     }
 
+    @Test func sqlEditorPrettyPrintsClausesAndConditions() {
+        let formatted = SQLQueryBar.prettyPrintedSQL(for: "select name,count(*) from csv where active=1 and score>10 order by name desc")
+
+        #expect(formatted == """
+        SELECT name, COUNT(*)
+        FROM csv
+        WHERE active = 1
+        AND score > 10
+        ORDER BY name DESC
+        """)
+    }
+
+    @Test func sqlEditorPrettyPrintIndentsSubqueries() {
+        let formatted = SQLQueryBar.prettyPrintedSQL(for: "select * from (select name from csv where active=1) as active_rows")
+
+        #expect(formatted == """
+        SELECT *
+        FROM (
+            SELECT name
+            FROM csv
+            WHERE active = 1
+        ) AS active_rows
+        """)
+    }
+
+    @Test func sqlEditorPrettyPrintPreservesQuotedValuesAndComments() {
+        let formatted = SQLQueryBar.prettyPrintedSQL(for: "select 'from  x', \"order by\" from csv -- retain  spaces\nwhere name='O''Brien'")
+
+        #expect(formatted.contains("'from  x'"))
+        #expect(formatted.contains("\"order by\""))
+        #expect(formatted.contains("-- retain  spaces"))
+        #expect(formatted.contains("name = 'O''Brien'"))
+    }
+
     @Test func sqlEditorExecutesItsCompleteMultilineQuery() {
         let editor = SQLQueryBar()
         let query = """

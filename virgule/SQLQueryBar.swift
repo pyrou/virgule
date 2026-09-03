@@ -5,6 +5,7 @@ import AppKit
 /// into the native application.
 final class SQLQueryBar: NSView, NSTextViewDelegate {
     let textView = SQLQueryTextView()
+    private let formatButton = NSButton(title: "Format", target: nil, action: nil)
 
     /// Invoked with the complete multi-line query when the user presses
     /// Command-Return. The owner can execute it asynchronously without making
@@ -62,14 +63,26 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         textView.onCommandReturn = { [weak self] in
             self?.executeQuery()
         }
+        textView.onFormat = { [weak self] in
+            self?.prettyPrint()
+        }
         scrollView.documentView = textView
 
+        formatButton.bezelStyle = .inline
+        formatButton.font = .systemFont(ofSize: 11, weight: .medium)
+        formatButton.toolTip = "Pretty print SQL (Command-Shift-F)"
+        formatButton.target = self
+        formatButton.action = #selector(prettyPrint(_:))
+
         addSubview(scrollView)
+        addSubview(formatButton)
         NSLayoutConstraint.activate([
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: formatButton.leadingAnchor, constant: -4),
             scrollView.topAnchor.constraint(equalTo: topAnchor),
             scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            formatButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            formatButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -7),
         ])
         highlightSyntax()
     }
@@ -82,6 +95,12 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
     /// tests can invoke the same Command-Return behavior directly.
     func executeQuery() {
         onExecute?(sql)
+    }
+
+    /// Rewrites only SQL whitespace and keyword casing. String literals,
+    /// quoted identifiers, and comments are deliberately retained verbatim.
+    @objc func prettyPrint(_ sender: Any? = nil) {
+        sql = Self.prettyPrintedSQL(for: sql)
     }
 
     private func highlightSyntax() {
@@ -122,12 +141,17 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         apply("\\\"__virgule_row_id\\\"", .tertiaryLabelColor)
         return result
     }
+
+    static func prettyPrintedSQL(for sql: String) -> String {
+        SQLPrettyPrinter.format(sql)
+    }
 }
 
 /// Preserves Return for multi-line editing while reserving Command-Return for
 /// query execution, matching native macOS editor conventions.
 final class SQLQueryTextView: NSTextView {
     var onCommandReturn: (() -> Void)?
+    var onFormat: (() -> Void)?
 
     override func keyDown(with event: NSEvent) {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
@@ -136,6 +160,187 @@ final class SQLQueryTextView: NSTextView {
             onCommandReturn?()
             return
         }
+        if modifiers.contains([.command, .shift]), event.charactersIgnoringModifiers?.lowercased() == "f" {
+            onFormat?()
+            return
+        }
         super.keyDown(with: event)
+    }
+}
+
+private enum SQLPrettyPrinter {
+    private enum Token: Equatable {
+        case word(String)
+        case quoted(String)
+        case comment(String)
+        case symbol(Character)
+        case `operator`(String)
+    }
+
+    private static let keywords: Set<String> = [
+        "SELECT", "FROM", "WHERE", "AS", "AND", "OR", "NOT", "NULL", "IS", "IN", "LIKE", "BETWEEN",
+        "CASE", "WHEN", "THEN", "ELSE", "END", "JOIN", "INNER", "LEFT", "RIGHT", "OUTER", "ON",
+        "GROUP", "BY", "HAVING", "ORDER", "ASC", "DESC", "LIMIT", "OFFSET", "DISTINCT", "WITH",
+        "UNION", "ALL", "EXPLAIN", "QUERY", "PLAN", "INSERT", "UPDATE", "DELETE", "VALUES", "SET"
+    ]
+    private static let clauseStarters: Set<String> = [
+        "SELECT", "FROM", "WHERE", "HAVING", "LIMIT", "OFFSET", "UNION", "EXPLAIN", "INSERT", "UPDATE", "DELETE"
+    ]
+
+    static func format(_ sql: String) -> String {
+        let tokens = tokenize(sql)
+        guard !tokens.isEmpty else { return sql }
+
+        var lines: [String] = []
+        var current = ""
+        var indentation = 0
+        var parenthesisBlocks: [Bool] = []
+        var previousWord = ""
+
+        func append(_ value: String, spaceBefore: Bool = true) {
+            if spaceBefore, !current.isEmpty, !current.hasSuffix(" ") { current += " " }
+            current += value
+        }
+        func finishLine() {
+            let line = current.trimmingCharacters(in: .whitespaces)
+            guard !line.isEmpty else { return }
+            lines.append(String(repeating: "    ", count: max(0, indentation)) + line)
+            current = ""
+        }
+        func startsClause(_ word: String, next: Token?) -> Bool {
+            if word == "GROUP" || word == "ORDER" {
+                guard case let .word(nextWord) = next else { return false }
+                return nextWord.uppercased() == "BY"
+            }
+            return clauseStarters.contains(word)
+        }
+
+        for (index, token) in tokens.enumerated() {
+            let next = tokens.indices.contains(index + 1) ? tokens[index + 1] : nil
+            switch token {
+            case let .word(raw):
+                let word = keywords.contains(raw.uppercased()) ? raw.uppercased() : raw
+                if startsClause(word, next: next) {
+                    finishLine()
+                    append(word, spaceBefore: false)
+                } else if word == "AND" || word == "OR" {
+                    finishLine()
+                    append(word, spaceBefore: false)
+                } else {
+                    append(word)
+                }
+                previousWord = word
+            case let .quoted(value):
+                append(value)
+                previousWord = ""
+            case let .comment(value):
+                finishLine()
+                append(value, spaceBefore: false)
+                finishLine()
+                previousWord = ""
+            case .symbol("("):
+                if previousWord == "IN" || previousWord == "EXISTS" || previousWord.isEmpty {
+                    append("(")
+                } else {
+                    current += "("
+                }
+                let beginsSubquery: Bool
+                if case let .word(nextWord) = next {
+                    beginsSubquery = ["SELECT", "WITH"].contains(nextWord.uppercased())
+                } else {
+                    beginsSubquery = false
+                }
+                parenthesisBlocks.append(beginsSubquery)
+                if beginsSubquery {
+                    finishLine()
+                    indentation += 1
+                }
+                previousWord = ""
+            case .symbol(")"):
+                let closesSubquery = parenthesisBlocks.popLast() ?? false
+                if closesSubquery {
+                    finishLine()
+                    indentation = max(0, indentation - 1)
+                }
+                append(")", spaceBefore: false)
+                previousWord = ""
+            case .symbol(","):
+                current = current.trimmingCharacters(in: .whitespaces) + ","
+                current += " "
+                previousWord = ""
+            case .symbol(";"):
+                current = current.trimmingCharacters(in: .whitespaces) + ";"
+                finishLine()
+                previousWord = ""
+            case let .symbol(value):
+                append(String(value))
+                previousWord = ""
+            case let .operator(value):
+                append(value, spaceBefore: !(value == "*" && current.hasSuffix("(")))
+                previousWord = ""
+            }
+        }
+        finishLine()
+        return lines.joined(separator: "\n")
+    }
+
+    private static func tokenize(_ sql: String) -> [Token] {
+        var tokens: [Token] = []
+        var index = sql.startIndex
+        func advance(_ position: inout String.Index) { position = sql.index(after: position) }
+
+        while index < sql.endIndex {
+            let character = sql[index]
+            if character.isWhitespace { advance(&index); continue }
+            if character == "'" || character == "\"" {
+                let quote = character
+                let start = index
+                advance(&index)
+                while index < sql.endIndex {
+                    if sql[index] == quote {
+                        let afterQuote = sql.index(after: index)
+                        if afterQuote < sql.endIndex, sql[afterQuote] == quote {
+                            index = sql.index(after: afterQuote)
+                            continue
+                        }
+                        advance(&index)
+                        break
+                    }
+                    advance(&index)
+                }
+                tokens.append(.quoted(String(sql[start..<index])))
+            } else if character == "-", sql.index(after: index) < sql.endIndex, sql[sql.index(after: index)] == "-" {
+                let start = index
+                while index < sql.endIndex, sql[index] != "\n" { advance(&index) }
+                tokens.append(.comment(String(sql[start..<index])))
+            } else if character == "/", sql.index(after: index) < sql.endIndex, sql[sql.index(after: index)] == "*" {
+                let start = index
+                index = sql.index(index, offsetBy: 2)
+                while index < sql.endIndex {
+                    if sql[index] == "*", sql.index(after: index) < sql.endIndex, sql[sql.index(after: index)] == "/" {
+                        index = sql.index(index, offsetBy: 2)
+                        break
+                    }
+                    advance(&index)
+                }
+                tokens.append(.comment(String(sql[start..<index])))
+            } else if character.isLetter || character == "_" || character.isNumber {
+                let start = index
+                while index < sql.endIndex, sql[index].isLetter || sql[index].isNumber || sql[index] == "_" || sql[index] == "." {
+                    advance(&index)
+                }
+                tokens.append(.word(String(sql[start..<index])))
+            } else if "(),;".contains(character) {
+                tokens.append(.symbol(character))
+                advance(&index)
+            } else {
+                let start = index
+                while index < sql.endIndex, !sql[index].isWhitespace, !"(),;'\"".contains(sql[index]) {
+                    advance(&index)
+                }
+                tokens.append(.operator(String(sql[start..<index])))
+            }
+        }
+        return tokens
     }
 }
