@@ -69,7 +69,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Make columns resizable.
 - [x] Load SQLite pages on demand while scrolling.
 - [x] Reuse visible row/cell views.
-- [ ] Verify that no cells are created for off-screen rows.
+- [x] Verify that no cells are created for off-screen rows.
 - [ ] Measure scrolling with a one-million-row dataset.
 
 ## 6. SQL query bar

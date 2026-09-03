@@ -53,6 +53,15 @@ final class VirtualizedGridView: NSView {
     var visibleRowViewCount: Int { documentView.visibleRowViewCount }
     var visibleCellViewCount: Int { documentView.visibleCellViewCount }
 
+    /// Scrolls the document to a model row. Kept internal for deterministic
+    /// AppKit verification that scrolling does not create off-screen views.
+    func scrollToRow(_ row: Int) {
+        let y = max(0, CGFloat(row) * VirtualizedGridDocumentView.rowHeight)
+        scrollView.contentView.scroll(to: NSPoint(x: scrollView.contentView.bounds.minX, y: y))
+        scrollView.reflectScrolledClipView(scrollView.contentView)
+        refreshVisibleViews()
+    }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         configureViews()
@@ -251,7 +260,7 @@ private final class VirtualizedGridColumnLayout {
 }
 
 private final class VirtualizedGridDocumentView: NSView {
-    private static let rowHeight: CGFloat = 24
+    static let rowHeight: CGFloat = 24
 
     private var rowCount = 0
     private var columnCount = 0
