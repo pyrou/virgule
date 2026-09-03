@@ -209,7 +209,7 @@ final class VirtualizedGridView: NSView {
     }
 
     private static let headerHeight: CGFloat = 30
-    private static let headerFadeHeight: CGFloat = 6
+    private static let headerFadeHeight: CGFloat = 1
     private static let rowNumberWidth: CGFloat = 52
 }
 
@@ -721,7 +721,7 @@ private final class VirtualizedGridHeaderFadeView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let colors = [
-            NSColor.separatorColor.withAlphaComponent(0.5).cgColor,
+            NSColor.separatorColor.withAlphaComponent(0.18).cgColor,
             NSColor.clear.cgColor,
         ] as CFArray
         guard let gradient = CGGradient(
