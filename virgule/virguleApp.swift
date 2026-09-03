@@ -14,9 +14,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
         window.title = "Virgule"
-        window.center()
+        window.isRestorable = false
         window.contentViewController = controller
         window.makeKeyAndOrderFront(nil)
+        window.setContentSize(NSSize(width: 960, height: 640))
+        if let primaryScreen = NSScreen.screens.first {
+            let visibleFrame = primaryScreen.visibleFrame
+            let frame = window.frame
+            window.setFrameOrigin(NSPoint(
+                x: visibleFrame.midX - frame.width / 2,
+                y: visibleFrame.midY - frame.height / 2
+            ))
+        }
         NSApp.activate(ignoringOtherApps: true)
         self.window = window
     }
