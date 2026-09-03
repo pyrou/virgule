@@ -57,7 +57,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Add a CSV file picker.
 - [x] Add CSV drag and drop.
 - [x] Run imports off the main thread.
-- [ ] Show the first rows while the import continues.
+- [x] Show the first rows while the import continues.
 - [ ] Clearly display “Read-only — the source file is not modified.”
 - [ ] Display progress and actionable errors.
 

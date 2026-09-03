@@ -5,8 +5,10 @@ final class ContentViewController: NSViewController, NSToolbarDelegate {
     private let engine = virgule_engine_create()
     private let titleLabel = NSTextField(labelWithString: "Open a CSV file to begin")
     private let detailLabel = NSTextField(wrappingLabelWithString: "Choose a CSV file or drag one into this window.")
+    private let previewLabel = NSTextField(wrappingLabelWithString: "")
     private let openButton = NSButton(title: "Open CSV…", target: nil, action: nil)
     private var currentImportID: UUID?
+    private var previewRows: [String] = []
 
     deinit {
         virgule_engine_destroy(engine)
@@ -27,6 +29,11 @@ final class ContentViewController: NSViewController, NSToolbarDelegate {
         detailLabel.maximumNumberOfLines = 2
         detailLabel.setContentCompressionResistancePriority(.required, for: .vertical)
 
+        previewLabel.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        previewLabel.textColor = .secondaryLabelColor
+        previewLabel.maximumNumberOfLines = 5
+        previewLabel.isHidden = true
+
         openButton.bezelStyle = .rounded
         openButton.target = self
         openButton.action = #selector(openCSV(_:))
@@ -36,7 +43,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate {
         readOnlyLabel.textColor = .secondaryLabelColor
         readOnlyLabel.alignment = .center
 
-        let stack = NSStackView(views: [titleLabel, detailLabel, openButton, readOnlyLabel])
+        let stack = NSStackView(views: [titleLabel, detailLabel, previewLabel, openButton, readOnlyLabel])
         stack.orientation = .vertical
         stack.alignment = .centerX
         stack.spacing = 12
@@ -77,6 +84,9 @@ final class ContentViewController: NSViewController, NSToolbarDelegate {
 
         let importID = UUID()
         currentImportID = importID
+        previewRows = []
+        previewLabel.stringValue = ""
+        previewLabel.isHidden = true
         titleLabel.stringValue = "Importing \(url.lastPathComponent)…"
         detailLabel.stringValue = url.path
         openButton.isEnabled = false
@@ -107,6 +117,11 @@ final class ContentViewController: NSViewController, NSToolbarDelegate {
                 self.detailLabel.stringValue = "Preparing import (\(event.totalBytes) bytes)…"
             case VIRGULE_IMPORT_PREVIEW.rawValue:
                 self.detailLabel.stringValue = "Reading rows…"
+                if self.previewRows.count < 5 {
+                    self.previewRows.append(event.values.joined(separator: "\t"))
+                    self.previewLabel.stringValue = self.previewRows.joined(separator: "\n")
+                    self.previewLabel.isHidden = false
+                }
             case VIRGULE_IMPORT_PROGRESS.rawValue:
                 self.detailLabel.stringValue = "Imported \(event.importedRows) rows…"
             case VIRGULE_IMPORT_COMPLETED.rawValue:
@@ -174,6 +189,7 @@ private struct ImportEventSnapshot {
     let kind: UInt32
     let importedRows: Int
     let totalBytes: UInt64
+    let values: [String]
     let message: String
 }
 
@@ -181,10 +197,16 @@ private let virguleImportCallback: VirguleImportCallback = { event, context in
     guard let event, let context else { return }
     let importContext = Unmanaged<ImportContext>.fromOpaque(context).takeUnretainedValue()
     let importedEvent = event.pointee
+    let values = importedEvent.values.map { values in
+        (0 ..< Int(importedEvent.value_count)).compactMap { index in
+            values[index].map { String(cString: $0) }
+        }
+    } ?? []
     let snapshot = ImportEventSnapshot(
         kind: importedEvent.kind,
         importedRows: importedEvent.imported_rows,
         totalBytes: importedEvent.total_bytes,
+        values: values,
         message: importedEvent.message.map { String(cString: $0) } ?? ""
     )
     importContext.controller?.receiveImportEvent(snapshot, importID: importContext.importID)
