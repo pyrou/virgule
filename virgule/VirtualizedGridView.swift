@@ -6,11 +6,19 @@ import AppKit
 protocol VirtualizedGridDataSource: AnyObject {
     func numberOfRows(in grid: VirtualizedGridView) -> Int
     func numberOfColumns(in grid: VirtualizedGridView) -> Int
+    /// Returns the user-facing, stable identifier for a result row. This is
+    /// intentionally separate from its current viewport index so a future
+    /// filtered or paginated result can retain source row numbers.
+    func grid(_ grid: VirtualizedGridView, rowNumberForRow row: Int) -> Int
     func grid(_ grid: VirtualizedGridView, valueForRow row: Int, column: Int) -> String
     func grid(_ grid: VirtualizedGridView, titleForColumn column: Int) -> String
 }
 
 extension VirtualizedGridDataSource {
+    func grid(_ grid: VirtualizedGridView, rowNumberForRow row: Int) -> Int {
+        row + 1
+    }
+
     func grid(_ grid: VirtualizedGridView, titleForColumn column: Int) -> String {
         "Column \(column + 1)"
     }
@@ -28,6 +36,9 @@ final class VirtualizedGridView: NSView {
     private let documentView = VirtualizedGridDocumentView()
     private let headerClipView = NSClipView()
     private let headerDocumentView = VirtualizedGridHeaderDocumentView()
+    private let rowNumberClipView = NSClipView()
+    private let rowNumberDocumentView = VirtualizedGridRowNumberDocumentView()
+    private let rowNumberHeaderView = VirtualizedGridRowNumberHeaderView()
     private let columnLayout = VirtualizedGridColumnLayout()
     private var boundsObserver: NSObjectProtocol?
 
@@ -56,6 +67,10 @@ final class VirtualizedGridView: NSView {
             self?.setWidth(width, forColumn: column)
         }
 
+        rowNumberClipView.drawsBackground = false
+        rowNumberClipView.documentView = rowNumberDocumentView
+        rowNumberDocumentView.grid = self
+
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = true
@@ -67,6 +82,8 @@ final class VirtualizedGridView: NSView {
         documentView.columnLayout = columnLayout
 
         addSubview(headerClipView)
+        addSubview(rowNumberHeaderView)
+        addSubview(rowNumberClipView)
         addSubview(scrollView)
         boundsObserver = NotificationCenter.default.addObserver(
             forName: NSView.boundsDidChangeNotification,
@@ -85,11 +102,23 @@ final class VirtualizedGridView: NSView {
 
     override func layout() {
         super.layout()
-        headerClipView.frame = NSRect(x: 0, y: 0, width: bounds.width, height: Self.headerHeight)
-        scrollView.frame = NSRect(
+        rowNumberHeaderView.frame = NSRect(x: 0, y: 0, width: Self.rowNumberWidth, height: Self.headerHeight)
+        rowNumberClipView.frame = NSRect(
             x: 0,
             y: Self.headerHeight,
-            width: bounds.width,
+            width: Self.rowNumberWidth,
+            height: max(0, bounds.height - Self.headerHeight)
+        )
+        headerClipView.frame = NSRect(
+            x: Self.rowNumberWidth,
+            y: 0,
+            width: max(0, bounds.width - Self.rowNumberWidth),
+            height: Self.headerHeight
+        )
+        scrollView.frame = NSRect(
+            x: Self.rowNumberWidth,
+            y: Self.headerHeight,
+            width: max(0, bounds.width - Self.rowNumberWidth),
             height: max(0, bounds.height - Self.headerHeight)
         )
         updateDocumentMetrics()
@@ -105,6 +134,10 @@ final class VirtualizedGridView: NSView {
         dataSource?.grid(self, valueForRow: row, column: column) ?? ""
     }
 
+    fileprivate func rowNumber(forRow row: Int) -> Int {
+        dataSource?.grid(self, rowNumberForRow: row) ?? row + 1
+    }
+
     fileprivate func title(forColumn column: Int) -> String {
         dataSource?.grid(self, titleForColumn: column) ?? ""
     }
@@ -113,6 +146,8 @@ final class VirtualizedGridView: NSView {
         documentView.refreshVisibleViews()
         headerClipView.scroll(to: NSPoint(x: scrollView.contentView.bounds.minX, y: 0))
         headerDocumentView.refreshVisibleViews()
+        rowNumberClipView.scroll(to: NSPoint(x: 0, y: scrollView.contentView.bounds.minY))
+        rowNumberDocumentView.refreshVisibleViews()
     }
 
     private func updateDocumentMetrics() {
@@ -124,6 +159,11 @@ final class VirtualizedGridView: NSView {
             columnCount: columns,
             viewportWidth: scrollView.contentView.bounds.width
         )
+        rowNumberDocumentView.updateMetrics(
+            rowCount: rows,
+            width: rowNumberClipView.bounds.width,
+            height: documentView.bounds.height
+        )
         headerDocumentView.updateMetrics(columnCount: columns, width: documentView.bounds.width)
         refreshVisibleViews()
     }
@@ -134,6 +174,7 @@ final class VirtualizedGridView: NSView {
     }
 
     private static let headerHeight: CGFloat = 24
+    private static let rowNumberWidth: CGFloat = 56
 }
 
 /// Shared geometry for the document and the pinned header. Keeping this in one
@@ -290,6 +331,106 @@ private final class VirtualizedGridDocumentView: NSView {
     private func visibleColumnRange() -> Range<Int> {
         guard columnCount > 0 else { return 0 ..< 0 }
         return columnLayout?.visibleColumnRange(in: visibleRect) ?? (0 ..< 0)
+    }
+}
+
+/// The row-number gutter is a separate document view so it stays pinned while
+/// the data columns scroll horizontally. It mirrors the body's vertical
+/// viewport and virtualizes labels with the same geometry as data rows.
+private final class VirtualizedGridRowNumberDocumentView: NSView {
+    private static let rowHeight: CGFloat = 24
+
+    private var rowCount = 0
+    private var activeLabels: [Int: VirtualizedGridRowNumberView] = [:]
+    private var recycledLabels: [VirtualizedGridRowNumberView] = []
+
+    weak var grid: VirtualizedGridView? {
+        didSet { refreshVisibleViews() }
+    }
+
+    override var isFlipped: Bool { true }
+
+    func updateMetrics(rowCount: Int, width: CGFloat, height: CGFloat) {
+        self.rowCount = rowCount
+        frame = NSRect(x: 0, y: 0, width: width, height: height)
+        refreshVisibleViews()
+    }
+
+    func refreshVisibleViews() {
+        let visibleRows = visibleRowRange()
+        let requiredRows = Set(visibleRows)
+
+        for row in activeLabels.keys.filter({ !requiredRows.contains($0) }) {
+            guard let label = activeLabels.removeValue(forKey: row) else { continue }
+            label.removeFromSuperview()
+            recycledLabels.append(label)
+        }
+
+        for row in visibleRows {
+            let label: VirtualizedGridRowNumberView
+            if let existing = activeLabels[row] {
+                label = existing
+            } else if let recycled = recycledLabels.popLast() {
+                label = recycled
+                activeLabels[row] = label
+                addSubview(label)
+            } else {
+                label = VirtualizedGridRowNumberView()
+                activeLabels[row] = label
+                addSubview(label)
+            }
+
+            label.frame = NSRect(x: 0, y: CGFloat(row) * Self.rowHeight, width: bounds.width, height: Self.rowHeight)
+            label.stringValue = String(grid?.rowNumber(forRow: row) ?? (row + 1))
+        }
+    }
+
+    private func visibleRowRange() -> Range<Int> {
+        guard rowCount > 0, visibleRect.height > 0 else { return 0 ..< 0 }
+        let lower = max(0, Int(floor(visibleRect.minY / Self.rowHeight)))
+        let upper = min(rowCount, Int(ceil(visibleRect.maxY / Self.rowHeight)))
+        return lower ..< max(lower, upper)
+    }
+}
+
+private final class VirtualizedGridRowNumberHeaderView: NSTextField {
+    init() {
+        super.init(frame: .zero)
+        stringValue = "#"
+        isEditable = false
+        isSelectable = false
+        isBordered = false
+        alignment = .right
+        drawsBackground = true
+        backgroundColor = .controlBackgroundColor
+        font = .monospacedSystemFont(ofSize: 12, weight: .semibold)
+        wantsLayer = true
+        layer?.borderWidth = 0.5
+        layer?.borderColor = NSColor.separatorColor.cgColor
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+private final class VirtualizedGridRowNumberView: NSTextField {
+    init() {
+        super.init(frame: .zero)
+        isEditable = false
+        isSelectable = false
+        isBordered = false
+        alignment = .right
+        textColor = .secondaryLabelColor
+        drawsBackground = false
+        font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+        wantsLayer = true
+        layer?.borderWidth = 0.5
+        layer?.borderColor = NSColor.separatorColor.cgColor
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 }
 
