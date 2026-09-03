@@ -20,6 +20,9 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private var columnCount = 0
     private var columnTitles: [String] = []
     private var activeQuerySQL: String?
+    private var baseQuerySQL = ""
+    private var baseQueryReadsCSV = false
+    private var sortDescriptors: [SortDescriptor] = []
     private var currentViewID = UUID()
     private let pageSize = 256
     private let maximumCachedPages = 8
@@ -133,6 +136,9 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         columnCount = 0
         columnTitles = []
         activeQuerySQL = nil
+        baseQuerySQL = ""
+        baseQueryReadsCSV = false
+        sortDescriptors = []
         currentViewID = UUID()
         queryBar.sql = ""
         setGridVisible(false)
@@ -172,7 +178,9 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
                 self.detailLabel.stringValue = "Preparing import (\(event.totalBytes) bytes)…"
             case VIRGULE_IMPORT_HEADERS.rawValue:
                 self.columnTitles = event.values
-                self.queryBar.sql = Self.defaultSQL
+                self.baseQuerySQL = Self.sourceQuery(for: event.values)
+                self.baseQueryReadsCSV = true
+                self.queryBar.sql = self.renderedQuerySQL()
                 self.gridView.reloadData()
             case VIRGULE_IMPORT_PREVIEW.rawValue:
                 self.detailLabel.stringValue = "Reading rows…"
@@ -223,6 +231,31 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
 
     func grid(_ grid: VirtualizedGridView, rowNumberForRow row: Int) -> Int {
         cachedRows[row]?.sourceRow ?? row + 1
+    }
+
+    func grid(_ grid: VirtualizedGridView, didRequestSortColumn column: Int, appending: Bool) {
+        guard cachePath != nil, columnTitles.indices.contains(column) else { return }
+
+        if !appending, let existing = sortDescriptors.first(where: { $0.column == column }) {
+            sortDescriptors = [SortDescriptor(
+                column: column,
+                direction: existing.direction == .ascending ? .descending : .ascending
+            )]
+        } else if !appending {
+            sortDescriptors = [SortDescriptor(column: column, direction: .ascending)]
+        } else if let index = sortDescriptors.firstIndex(where: { $0.column == column }) {
+            sortDescriptors[index].direction = sortDescriptors[index].direction == .ascending ? .descending : .ascending
+        } else {
+            sortDescriptors.append(SortDescriptor(column: column, direction: .ascending))
+        }
+
+        let sql = renderedQuerySQL()
+        queryBar.sql = sql
+        executeQuery(sql, baseQuery: baseQuerySQL, sorting: sortDescriptors)
+    }
+
+    func grid(_ grid: VirtualizedGridView, sortDirectionForColumn column: Int) -> GridSortDirection? {
+        sortDescriptors.first(where: { $0.column == column })?.direction
     }
 
     func grid(_ grid: VirtualizedGridView, willDisplayRows rows: Range<Int>) {
@@ -297,11 +330,21 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         NSLayoutConstraint.activate(isVisible ? previewStateConstraints : emptyStateConstraints)
     }
 
-    private func executeQuery(_ sql: String) {
+    private func executeQuery(_ sql: String, baseQuery: String? = nil, sorting: [SortDescriptor]? = nil) {
         guard let cachePath, let importID = currentImportID else { return }
         let viewID = UUID()
         currentViewID = viewID
         activeQuerySQL = sql
+        if let baseQuery {
+            baseQuerySQL = baseQuery
+        } else {
+            baseQuerySQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
+            baseQueryReadsCSV = false
+            sortDescriptors = []
+        }
+        if let sorting {
+            sortDescriptors = sorting
+        }
         cachedRows = [:]
         loadingPageOffsets = []
         columnTitles = []
@@ -369,11 +412,31 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         ["csv", "tsv"].contains(url.pathExtension.lowercased())
     }
 
-    private static let defaultSQL = """
-    SELECT *
-    FROM csv
-    ORDER BY "__virgule_row_id"
-    """
+    private func renderedQuerySQL() -> String {
+        let base = baseQuerySQL.isEmpty ? Self.sourceQuery(for: columnTitles) : baseQuerySQL
+        let ordering = sortDescriptors.compactMap { descriptor -> String? in
+            guard columnTitles.indices.contains(descriptor.column) else { return nil }
+            let direction = descriptor.direction == .ascending ? "ASC" : "DESC"
+            return "\(Self.quoteIdentifier(columnTitles[descriptor.column])) \(direction)"
+        }
+        guard !ordering.isEmpty else {
+            return base + "\nORDER BY \"__virgule_row_id\""
+        }
+        if baseQueryReadsCSV {
+            return base + "\nORDER BY " + ordering.joined(separator: ", ") + ", \"__virgule_row_id\""
+        }
+        let queryWithoutTerminator = base.trimmingCharacters(in: CharacterSet(charactersIn: "; "))
+        return "SELECT *\nFROM (\n\(queryWithoutTerminator)\n) AS \"__virgule_sorted_view\"\nORDER BY " + ordering.joined(separator: ", ")
+    }
+
+    nonisolated private static func sourceQuery(for columns: [String]) -> String {
+        let selectedColumns = columns.map(quoteIdentifier).joined(separator: ", ")
+        return "SELECT \(selectedColumns)\nFROM csv"
+    }
+
+    nonisolated private static func quoteIdentifier(_ identifier: String) -> String {
+        "\"\(identifier.replacingOccurrences(of: "\"", with: "\"\""))\""
+    }
 }
 
 private final class ImportContext {
@@ -389,6 +452,11 @@ private final class ImportContext {
 private struct CachedRow {
     let sourceRow: Int
     let values: [String]
+}
+
+private struct SortDescriptor {
+    let column: Int
+    var direction: GridSortDirection
 }
 
 private final class PageContext {

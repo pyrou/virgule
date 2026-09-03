@@ -1,5 +1,10 @@
 import AppKit
 
+enum GridSortDirection {
+    case ascending
+    case descending
+}
+
 /// Supplies the values that are currently available to the grid. The data
 /// source is deliberately index-based: callers can back it with a paginated
 /// SQLite result without materializing every row in AppKit.
@@ -12,6 +17,11 @@ protocol VirtualizedGridDataSource: AnyObject {
     func grid(_ grid: VirtualizedGridView, rowNumberForRow row: Int) -> Int
     func grid(_ grid: VirtualizedGridView, valueForRow row: Int, column: Int) -> String
     func grid(_ grid: VirtualizedGridView, titleForColumn column: Int) -> String
+    /// Called when the user clicks a header outside its resize handle. Shift
+    /// preserves existing sort keys so a view can be ordered by multiple
+    /// columns.
+    func grid(_ grid: VirtualizedGridView, didRequestSortColumn column: Int, appending: Bool)
+    func grid(_ grid: VirtualizedGridView, sortDirectionForColumn column: Int) -> GridSortDirection?
     /// Announces the rows currently needed to render the viewport. Data
     /// sources must return immediately from value lookup and can load these
     /// rows asynchronously from a paginated backing store.
@@ -28,6 +38,10 @@ extension VirtualizedGridDataSource {
     }
 
     func grid(_ grid: VirtualizedGridView, willDisplayRows rows: Range<Int>) {}
+
+    func grid(_ grid: VirtualizedGridView, didRequestSortColumn column: Int, appending: Bool) {}
+
+    func grid(_ grid: VirtualizedGridView, sortDirectionForColumn column: Int) -> GridSortDirection? { nil }
 }
 
 /// A scrollable AppKit grid which creates row and cell views only for the
@@ -91,6 +105,10 @@ final class VirtualizedGridView: NSView {
         headerDocumentView.columnLayout = columnLayout
         headerDocumentView.resizeColumn = { [weak self] column, width in
             self?.setWidth(width, forColumn: column)
+        }
+        headerDocumentView.requestSort = { [weak self] column, appending in
+            guard let self else { return }
+            self.dataSource?.grid(self, didRequestSortColumn: column, appending: appending)
         }
 
         rowNumberClipView.drawsBackground = false
@@ -175,6 +193,10 @@ final class VirtualizedGridView: NSView {
 
     fileprivate func title(forColumn column: Int) -> String {
         dataSource?.grid(self, titleForColumn: column) ?? ""
+    }
+
+    fileprivate func sortDirection(forColumn column: Int) -> GridSortDirection? {
+        dataSource?.grid(self, sortDirectionForColumn: column)
     }
 
     private func refreshVisibleViews() {
@@ -507,6 +529,7 @@ private final class VirtualizedGridHeaderDocumentView: NSView {
         didSet { refreshVisibleViews() }
     }
     var resizeColumn: ((Int, CGFloat) -> Void)?
+    var requestSort: ((Int, Bool) -> Void)?
 
     override var isFlipped: Bool { true }
 
@@ -549,6 +572,8 @@ private final class VirtualizedGridHeaderDocumentView: NSView {
             cell.stringValue = grid?.title(forColumn: column) ?? ""
             cell.column = column
             cell.resizeColumn = resizeColumn
+            cell.sortDirection = grid?.sortDirection(forColumn: column)
+            cell.requestSort = requestSort
         }
     }
 
@@ -564,10 +589,18 @@ private final class VirtualizedGridHeaderCellView: NSView {
     private let label = NSTextField(labelWithString: "")
     var column = 0
     var resizeColumn: ((Int, CGFloat) -> Void)?
-    var stringValue: String {
-        get { label.stringValue }
-        set { label.stringValue = newValue }
+    var requestSort: ((Int, Bool) -> Void)?
+    var sortDirection: GridSortDirection? {
+        didSet { updateLabel() }
     }
+    var stringValue: String {
+        get { title }
+        set {
+            title = newValue
+            updateLabel()
+        }
+    }
+    private var title = ""
 
     init() {
         super.init(frame: .zero)
@@ -601,7 +634,7 @@ private final class VirtualizedGridHeaderCellView: NSView {
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         guard point.x >= bounds.maxX - Self.resizeHandleWidth else {
-            super.mouseDown(with: event)
+            requestSort?(column, event.modifierFlags.contains(.shift))
             return
         }
 
@@ -618,6 +651,16 @@ private final class VirtualizedGridHeaderCellView: NSView {
                 break
             }
         }
+    }
+
+    private func updateLabel() {
+        let indicator: String
+        switch sortDirection {
+        case .ascending: indicator = " ▲"
+        case .descending: indicator = " ▼"
+        case nil: indicator = ""
+        }
+        label.stringValue = title + indicator
     }
 }
 

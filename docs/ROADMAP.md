@@ -79,7 +79,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Always display the active SQL above the grid.
 - [x] Support multi-line editing and execution with Command-Return.
 - [x] Immediately reflect valid user SQL in the grid.
-- [ ] Update readable SQL from sort and filter actions.
+- [x] Update readable SQL from sort and filter actions.
 - [ ] Add syntax highlighting, indentation, and pretty printing.
 - [ ] Add validation while typing with line/column errors.
 - [ ] Add contextual completion for keywords, tables, columns, and functions.
@@ -89,7 +89,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 ## 7. Data interactions
 
 - [ ] Add Command-F search (whole dataset or a column; text/regex).
-- [ ] Add single/multi-column sorting with Shift-click.
+- [x] Add single/multi-column sorting with Shift-click.
 - [ ] Add text, empty/non-empty, numeric, and date filters.
 - [ ] Add cell, range, row, column, and Command multi-selection.
 - [ ] Copy the selection as TSV with Command-C.
