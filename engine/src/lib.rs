@@ -7,6 +7,7 @@ use std::os::raw::c_char;
 use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
+use rusqlite::types::ValueRef;
 
 /// Opaque state: its layout is intentionally private to Rust.
 pub struct VirguleEngine {
@@ -42,6 +43,20 @@ pub struct CsvCache {
     path: PathBuf,
 }
 
+/// One row of a result page. `source_row` remains stable while the cache exists.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CsvPageRow {
+    pub source_row: i64,
+    pub values: Vec<String>,
+}
+
+/// A bounded result slice for the virtualized grid.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CsvPage {
+    pub offset: usize,
+    pub rows: Vec<CsvPageRow>,
+}
+
 impl CsvCache {
     /// Creates or opens the cache associated with `source_file`.
     pub fn open_for_source(source_file: &Path) -> rusqlite::Result<Self> {
@@ -58,6 +73,25 @@ impl CsvCache {
     /// Provides the cache connection to the importer and query engine.
     pub fn connection(&self) -> &Connection {
         &self.connection
+    }
+
+    /// Loads exactly one bounded page from `csv`, never materializing the full
+    /// result set for the AppKit host.
+    pub fn read_csv_page(&self, offset: usize, limit: usize) -> rusqlite::Result<CsvPage> {
+        let mut statement = self
+            .connection
+            .prepare("SELECT rowid, * FROM csv ORDER BY rowid LIMIT ?1 OFFSET ?2")?;
+        let column_count = statement.column_count();
+        let rows = statement
+            .query_map((limit, offset), |row| {
+                let source_row = row.get(0)?;
+                let values = (1..column_count)
+                    .map(|index| sqlite_value_to_string(row.get_ref(index)?))
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(CsvPageRow { source_row, values })
+            })
+            .and_then(Iterator::collect)?;
+        Ok(CsvPage { offset, rows })
     }
 
     /// Imports parsed records into an existing table as one all-or-nothing SQLite
@@ -167,6 +201,28 @@ impl CsvCache {
         drop(statement);
         transaction.commit()?;
         Ok(metadata)
+    }
+}
+
+fn sqlite_value_to_string(value: ValueRef<'_>) -> rusqlite::Result<String> {
+    match value {
+        ValueRef::Null => Ok(String::new()),
+        ValueRef::Integer(value) => Ok(value.to_string()),
+        ValueRef::Real(value) => Ok(value.to_string()),
+        ValueRef::Text(value) => Ok(std::str::from_utf8(value)
+            .map_err(|error| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(error),
+                )
+            })?
+            .to_owned()),
+        ValueRef::Blob(_) => Err(rusqlite::Error::InvalidColumnType(
+            0,
+            "value".to_owned(),
+            rusqlite::types::Type::Blob,
+        )),
     }
 }
 
@@ -1249,6 +1305,54 @@ mod tests {
                 ("Ada".to_owned(), "Paris".to_owned()),
                 ("Lin".to_owned(), "Tokyo".to_owned()),
             ]
+        );
+    }
+
+    #[test]
+    fn reads_only_the_requested_csv_page_with_stable_row_numbers() {
+        let connection = Connection::open_in_memory().expect("opens in-memory cache");
+        let mut cache = CsvCache {
+            connection,
+            path: PathBuf::from(":memory:"),
+        };
+        cache
+            .create_csv_table([CsvColumn {
+                source_name: "name".to_owned(),
+                column_type: ColumnType::Text,
+            }])
+            .expect("creates CSV table");
+        cache
+            .import_records(
+                "csv",
+                1,
+                ["Ada", "Lin", "Maya", "Noah"]
+                    .into_iter()
+                    .map(|name| Ok(vec![name.to_owned()])),
+            )
+            .expect("imports rows");
+
+        assert_eq!(
+            cache.read_csv_page(1, 2).expect("reads bounded page"),
+            CsvPage {
+                offset: 1,
+                rows: vec![
+                    CsvPageRow {
+                        source_row: 2,
+                        values: vec!["Lin".to_owned()],
+                    },
+                    CsvPageRow {
+                        source_row: 3,
+                        values: vec!["Maya".to_owned()],
+                    },
+                ],
+            }
+        );
+        assert!(
+            cache
+                .read_csv_page(4, 2)
+                .expect("reads final page")
+                .rows
+                .is_empty()
         );
     }
 

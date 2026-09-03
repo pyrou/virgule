@@ -46,7 +46,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Import in one transaction using prepared statements.
 - [x] Create the `csv` table and retain column metadata.
 - [x] Expose progress, early preview, completion, and errors through FFI.
-- [ ] Paginate results without materializing them in the UI.
+- [x] Paginate results without materializing them in the UI.
 - [ ] Validate read-only `SELECT`, `WITH`, and `EXPLAIN` queries.
 - [ ] Reject `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ATTACH`, and other writes.
 - [ ] Add SQL-validation and pagination tests.
