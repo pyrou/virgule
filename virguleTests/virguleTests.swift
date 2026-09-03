@@ -61,6 +61,22 @@ struct virguleTests {
         #expect(highlighted.attribute(.foregroundColor, at: selectRange.location, effectiveRange: nil) as? NSColor == .systemPurple)
         #expect(highlighted.attribute(.foregroundColor, at: commentRange.location, effectiveRange: nil) as? NSColor == .secondaryLabelColor)
     }
+
+    @Test func sqlEditorExecutesItsCompleteMultilineQuery() {
+        let editor = SQLQueryBar()
+        let query = """
+        SELECT name
+        FROM csv
+        WHERE active = 1
+        """
+        var executedQuery: String?
+        editor.sql = query
+        editor.onExecute = { executedQuery = $0 }
+
+        editor.executeQuery()
+
+        #expect(executedQuery == query)
+    }
 }
 
 private final class GridDataSource: VirtualizedGridDataSource {

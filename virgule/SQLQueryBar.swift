@@ -4,7 +4,12 @@ import AppKit
 /// syntax colours without bringing a web editor or a third-party dependency
 /// into the native application.
 final class SQLQueryBar: NSView, NSTextViewDelegate {
-    let textView = NSTextView()
+    let textView = SQLQueryTextView()
+
+    /// Invoked with the complete multi-line query when the user presses
+    /// Command-Return. The owner can execute it asynchronously without making
+    /// the editor responsible for data access.
+    var onExecute: ((String) -> Void)?
 
     var sql: String {
         get { textView.string }
@@ -54,6 +59,9 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         textView.isHorizontallyResizable = false
         textView.textContainer?.widthTracksTextView = true
         textView.delegate = self
+        textView.onCommandReturn = { [weak self] in
+            self?.executeQuery()
+        }
         scrollView.documentView = textView
 
         addSubview(scrollView)
@@ -68,6 +76,12 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
 
     func textDidChange(_ notification: Notification) {
         highlightSyntax()
+    }
+
+    /// Runs the editor action. Kept separate from key handling so callers and
+    /// tests can invoke the same Command-Return behavior directly.
+    func executeQuery() {
+        onExecute?(sql)
     }
 
     private func highlightSyntax() {
@@ -104,5 +118,21 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         apply("\\b\\d+(?:\\.\\d+)?\\b", .systemOrange)
         apply("--[^\\n]*|/\\*[\\s\\S]*?\\*/", .secondaryLabelColor)
         return result
+    }
+}
+
+/// Preserves Return for multi-line editing while reserving Command-Return for
+/// query execution, matching native macOS editor conventions.
+final class SQLQueryTextView: NSTextView {
+    var onCommandReturn: (() -> Void)?
+
+    override func keyDown(with event: NSEvent) {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let isReturn = event.charactersIgnoringModifiers == "\r" || event.charactersIgnoringModifiers == "\n"
+        if modifiers.contains(.command), isReturn {
+            onCommandReturn?()
+            return
+        }
+        super.keyDown(with: event)
     }
 }
