@@ -1,5 +1,135 @@
 import AppKit
 
+/// Translates the friendly names shown in the editor to the names understood
+/// by the local SQLite cache. The projection also retains enough position
+/// information to report SQLite errors against the text the person sees.
+struct SQLQueryPresentation {
+    let sourcePath: String
+
+    static let internalRowID = "$virgule_row_id"
+    private static let engineSource = "csv"
+    private static let engineRowID = "\"__virgule_row_id\""
+
+    func engineSQL(for displayedSQL: String) -> String {
+        project(displayedSQL).engineSQL
+    }
+
+    func displayedError(_ message: String, for displayedSQL: String) -> String {
+        let projection = project(displayedSQL)
+        var displayedMessage = message
+            .replacingOccurrences(of: "__virgule_row_id", with: Self.internalRowID)
+        if !sourcePath.isEmpty {
+            displayedMessage = displayedMessage.replacingOccurrences(of: "csv", with: sourcePath)
+        }
+        guard let range = displayedMessage.range(of: #"at line ([0-9]+), column ([0-9]+)"#, options: .regularExpression) else { return displayedMessage }
+        let coordinates = String(displayedMessage[range])
+            .components(separatedBy: CharacterSet.decimalDigits.inverted)
+            .compactMap(Int.init)
+        guard coordinates.count == 2,
+              let displayed = projection.displayedLocation(line: coordinates[0], column: coordinates[1]) else {
+            return displayedMessage
+        }
+        return displayedMessage.replacingCharacters(in: range, with: "at line \(displayed.line), column \(displayed.column)")
+    }
+
+    private func project(_ displayedSQL: String) -> Projection {
+        let replacements = [(sourcePath, Self.engineSource), (Self.internalRowID, Self.engineRowID)]
+        var engine = ""
+        var displayedOffsets = [0]
+        var displayedOffset = 0
+        let scalars = Array(displayedSQL.unicodeScalars)
+        var index = 0
+        var state = LexerState.code
+
+        func append(_ engineText: String, displayedLength: Int) {
+            let engineLength = engineText.unicodeScalars.count
+            engine += engineText
+            if engineLength == 0 { return }
+            for offset in 1...engineLength {
+                // SQLite only reports token boundaries. Mapping intermediate
+                // characters to the token start still produces a useful,
+                // visible location for an error within a substituted token.
+                displayedOffsets.append(offset == engineLength ? displayedOffset + displayedLength : displayedOffset)
+            }
+            displayedOffset += displayedLength
+        }
+
+        while index < scalars.count {
+            let scalar = scalars[index]
+            switch state {
+            case .code:
+                if scalar == "'" { state = .singleQuote }
+                else if scalar == "\"" { state = .doubleQuote }
+                else if scalar == "-", index + 1 < scalars.count, scalars[index + 1] == "-" { state = .lineComment }
+                else if scalar == "/", index + 1 < scalars.count, scalars[index + 1] == "*" { state = .blockComment }
+
+                if let replacement = replacements.first(where: { candidate in
+                    let token = Array(candidate.0.unicodeScalars)
+                    guard !token.isEmpty, index + token.count <= scalars.count else { return false }
+                    return Array(scalars[index..<(index + token.count)]) == token
+                }) {
+                    append(replacement.1, displayedLength: replacement.0.unicodeScalars.count)
+                    index += replacement.0.unicodeScalars.count
+                    continue
+                }
+            case .singleQuote:
+                if scalar == "'" {
+                    if index + 1 < scalars.count, scalars[index + 1] == "'" {
+                        append("''", displayedLength: 2)
+                        index += 2
+                        continue
+                    }
+                    state = .code
+                }
+            case .doubleQuote:
+                if scalar == "\"" {
+                    if index + 1 < scalars.count, scalars[index + 1] == "\"" {
+                        append("\"\"", displayedLength: 2)
+                        index += 2
+                        continue
+                    }
+                    state = .code
+                }
+            case .lineComment:
+                if scalar == "\n" { state = .code }
+            case .blockComment:
+                if scalar == "*", index + 1 < scalars.count, scalars[index + 1] == "/" {
+                    append("*/", displayedLength: 2)
+                    index += 2
+                    state = .code
+                    continue
+                }
+            }
+            append(String(scalar), displayedLength: 1)
+            index += 1
+        }
+        return Projection(engineSQL: engine, displayedSQL: displayedSQL, displayedOffsets: displayedOffsets)
+    }
+
+    private enum LexerState { case code, singleQuote, doubleQuote, lineComment, blockComment }
+
+    private struct Projection {
+        let engineSQL: String
+        let displayedSQL: String
+        let displayedOffsets: [Int]
+
+        func displayedLocation(line: Int, column: Int) -> (line: Int, column: Int)? {
+            guard line > 0, column > 0 else { return nil }
+            let engineLines = engineSQL.split(separator: "\n", omittingEmptySubsequences: false)
+            guard line <= engineLines.count else { return nil }
+            let prefixLength = engineLines.prefix(line - 1).reduce(0) { $0 + $1.unicodeScalars.count + 1 }
+            let engineOffset = prefixLength + min(column - 1, engineLines[line - 1].unicodeScalars.count)
+            guard displayedOffsets.indices.contains(engineOffset) else { return nil }
+            let displayedScalars = Array(displayedSQL.unicodeScalars)
+            let displayedOffset = displayedOffsets[engineOffset]
+            let before = displayedScalars.prefix(displayedOffset)
+            let displayedLine = before.filter { $0 == "\n" }.count + 1
+            let displayedColumn = before.reversed().prefix(while: { $0 != "\n" }).count + 1
+            return (displayedLine, displayedColumn)
+        }
+    }
+}
+
 /// A compact, multi-line SQL editor. AppKit's attributed text storage gives us
 /// syntax colours without bringing a web editor or a third-party dependency
 /// into the native application.
@@ -25,6 +155,11 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
     /// The imported CSV schema. It is kept separate from query result headers
     /// so completion remains useful while a newly entered query is validated.
     var completionColumns: [String] = []
+    /// Friendly table name shown in generated queries. It is display-only;
+    /// `SQLQueryPresentation` converts it before SQLite sees the query.
+    var sourcePath: String? {
+        didSet { highlightSyntax() }
+    }
 
     private(set) var validationMessage: String?
     /// Most-recent-first, de-duplicated queries executed from this editor.
@@ -272,12 +407,12 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
 
     private func highlightSyntax() {
         let selectedRange = textView.selectedRange()
-        let attributed = Self.highlightedText(for: textView.string)
+        let attributed = Self.highlightedText(for: textView.string, sourcePath: sourcePath)
         textView.textStorage?.setAttributedString(attributed)
         textView.setSelectedRange(selectedRange)
     }
 
-    static func highlightedText(for sql: String) -> NSAttributedString {
+    static func highlightedText(for sql: String, sourcePath: String? = nil) -> NSAttributedString {
         let range = NSRange(sql.startIndex..., in: sql)
         let result = NSMutableAttributedString(
             string: sql,
@@ -303,9 +438,12 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         apply("'(?:''|[^'])*'|\\\"(?:\\\"\\\"|[^\\\"])*\\\"", .systemRed)
         apply("\\b\\d+(?:\\.\\d+)?\\b", .systemOrange)
         apply("--[^\\n]*|/\\*[\\s\\S]*?\\*/", .secondaryLabelColor)
-        // The muted colour separates the engine's ordering key from source
+        if let sourcePath, !sourcePath.isEmpty {
+            apply(NSRegularExpression.escapedPattern(for: sourcePath), .systemTeal)
+        }
+        // The muted colour separates Virgule's stable ordering key from source
         // columns, which retain the normal identifier/string appearance.
-        apply("\\\"__virgule_row_id\\\"", .tertiaryLabelColor)
+        apply("\\$virgule_row_id\\b", .tertiaryLabelColor)
         return result
     }
 

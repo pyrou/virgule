@@ -81,6 +81,32 @@ struct virguleTests {
         #expect(highlighted.attribute(.foregroundColor, at: commentRange.location, effectiveRange: nil) as? NSColor == .secondaryLabelColor)
     }
 
+    @Test func sqlEditorHighlightsFriendlySourceAndRowIdentifiers() {
+        let path = "/Users/michael/Downloads/myfile.csv"
+        let sql = "SELECT * FROM \(path) ORDER BY $virgule_row_id"
+        let highlighted = SQLQueryBar.highlightedText(for: sql, sourcePath: path)
+        let pathRange = (sql as NSString).range(of: path)
+        let rowIDRange = (sql as NSString).range(of: "$virgule_row_id")
+
+        #expect(highlighted.attribute(.foregroundColor, at: pathRange.location, effectiveRange: nil) as? NSColor == .systemTeal)
+        #expect(highlighted.attribute(.foregroundColor, at: rowIDRange.location, effectiveRange: nil) as? NSColor == .tertiaryLabelColor)
+    }
+
+    @Test func sqlPresentationMapsSQLiteLocationsBackToFriendlyQuery() {
+        let path = "/Users/michael/Downloads/myfile.csv"
+        let presentation = SQLQueryPresentation(sourcePath: path)
+        let displayedSQL = "SELECT * FROM \(path) FORM"
+
+        #expect(presentation.engineSQL(for: displayedSQL) == "SELECT * FROM csv FORM")
+        let expectedColumn = "SELECT * FROM ".unicodeScalars.count + path.unicodeScalars.count + 2
+        let error = presentation.displayedError(
+            "Invalid SQL query at line 1, column 19: near \\\"FORM\\\": syntax error",
+            for: displayedSQL
+        )
+
+        #expect(error.contains("line 1, column \(expectedColumn)"))
+    }
+
     @Test func sqlEditorPrettyPrintsClausesAndConditions() {
         let formatted = SQLQueryBar.prettyPrintedSQL(for: "select name,count(*) from csv where active=1 and score>10 order by name desc")
 

@@ -189,6 +189,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         columnTitles = []
         savedColumnWidths = [:]
         queryBar.completionColumns = []
+        queryBar.sourcePath = url.path
         activeQuerySQL = nil
         pendingQuerySQL = nil
         baseQuerySQL = ""
@@ -240,7 +241,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
                 self.columnTitles = event.values
                 self.queryBar.completionColumns = event.values
                 self.searchBar.setColumns(event.values)
-                self.baseQuerySQL = Self.sourceQuery(for: event.values)
+                self.baseQuerySQL = self.sourceQuery()
                 self.baseQueryReadsCSV = true
                 self.queryBar.sql = self.renderedQuerySQL()
                 self.gridView.reloadData()
@@ -461,9 +462,11 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
 
     private func executeQuery(_ sql: String, baseQuery: String? = nil, sorting: [SortDescriptor]? = nil) {
         guard let cachePath, let importID = currentImportID else { return }
+        let presentation = SQLQueryPresentation(sourcePath: sourceFileURL?.path ?? "")
+        let engineSQL = presentation.engineSQL(for: sql)
         let viewID = UUID()
         currentViewID = viewID
-        pendingQuerySQL = sql
+        pendingQuerySQL = engineSQL
         if let baseQuery {
             baseQuerySQL = baseQuery
         } else {
@@ -481,11 +484,17 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         // ("Column 1", "Column 2", …) during sorts.
         detailLabel.stringValue = "Validating query…"
         gridView.reloadData()
-        let context = Unmanaged.passRetained(QueryContext(controller: self, importID: importID, viewID: viewID))
+        let context = Unmanaged.passRetained(QueryContext(
+            controller: self,
+            importID: importID,
+            viewID: viewID,
+            presentation: presentation,
+            displayedSQL: sql
+        ))
         DispatchQueue.global(qos: .userInitiated).async {
             defer { context.release() }
             _ = cachePath.withCString { path in
-                sql.withCString { query in
+                engineSQL.withCString { query in
                     virgule_engine_describe_query(self.engine, path, query, virguleQueryCallback, context.toOpaque())
                 }
             }
@@ -572,18 +581,22 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         scheduledValidation?.cancel()
         guard let cachePath, let importID = currentImportID else { return }
         let validationID = UUID()
+        let presentation = SQLQueryPresentation(sourcePath: sourceFileURL?.path ?? "")
+        let engineSQL = presentation.engineSQL(for: sql)
         currentValidationID = validationID
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
             let context = Unmanaged.passRetained(ValidationContext(
                 controller: self,
                 importID: importID,
-                validationID: validationID
+                validationID: validationID,
+                presentation: presentation,
+                displayedSQL: sql
             ))
             DispatchQueue.global(qos: .userInitiated).async {
                 defer { context.release() }
                 _ = cachePath.withCString { path in
-                    sql.withCString { query in
+                    engineSQL.withCString { query in
                         virgule_engine_validate_query(
                             self.engine,
                             path,
@@ -602,9 +615,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     fileprivate func receiveValidation(_ event: ImportEventSnapshot, importID: UUID, validationID: UUID) {
         DispatchQueue.main.async { [weak self] in
             guard let self, self.currentImportID == importID, self.currentValidationID == validationID else { return }
-            self.queryBar.setValidationMessage(
-                event.kind == VIRGULE_IMPORT_HEADERS.rawValue ? nil : event.message
-            )
+            self.queryBar.setValidationMessage(event.kind == VIRGULE_IMPORT_HEADERS.rawValue ? nil : event.message)
         }
     }
 
@@ -669,7 +680,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     }
 
     private func renderedQuerySQL() -> String {
-        let unfilteredBase = baseQuerySQL.isEmpty ? Self.sourceQuery(for: columnTitles) : baseQuerySQL
+        let unfilteredBase = baseQuerySQL.isEmpty ? sourceQuery() : baseQuerySQL
         let base = DatasetSearch.filteredSQL(baseSQL: unfilteredBase, columns: columnTitles, search: datasetSearch)
         let ordering = sortDescriptors.compactMap { descriptor -> String? in
             guard columnTitles.indices.contains(descriptor.column) else { return nil }
@@ -677,18 +688,18 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
             return "\(Self.quoteIdentifier(columnTitles[descriptor.column])) \(direction)"
         }
         guard !ordering.isEmpty else {
-            return baseQueryReadsCSV ? base + "\nORDER BY \"__virgule_row_id\"" : base
+            return baseQueryReadsCSV ? base + "\nORDER BY \(SQLQueryPresentation.internalRowID)" : base
         }
         if baseQueryReadsCSV {
-            return base + "\nORDER BY " + ordering.joined(separator: ", ") + ", \"__virgule_row_id\""
+            return base + "\nORDER BY " + ordering.joined(separator: ", ") + ", \(SQLQueryPresentation.internalRowID)"
         }
         let queryWithoutTerminator = base.trimmingCharacters(in: CharacterSet(charactersIn: "; "))
         return "SELECT *\nFROM (\n\(queryWithoutTerminator)\n) AS \"__virgule_sorted_view\"\nORDER BY " + ordering.joined(separator: ", ")
     }
 
-    nonisolated private static func sourceQuery(for columns: [String]) -> String {
-        let selectedColumns = ([quoteIdentifier("__virgule_row_id")] + columns.map(quoteIdentifier)).joined(separator: ", ")
-        return "SELECT \(selectedColumns)\nFROM csv"
+    private func sourceQuery() -> String {
+        let path = sourceFileURL?.path ?? "csv"
+        return "SELECT *\nFROM \(path)"
     }
 
     private func applyDatasetSearch(_ search: DatasetSearch?) {
@@ -768,11 +779,21 @@ private final class QueryContext {
     weak var controller: ContentViewController?
     let importID: UUID
     let viewID: UUID
+    let presentation: SQLQueryPresentation
+    let displayedSQL: String
 
-    init(controller: ContentViewController, importID: UUID, viewID: UUID) {
+    init(
+        controller: ContentViewController,
+        importID: UUID,
+        viewID: UUID,
+        presentation: SQLQueryPresentation,
+        displayedSQL: String
+    ) {
         self.controller = controller
         self.importID = importID
         self.viewID = viewID
+        self.presentation = presentation
+        self.displayedSQL = displayedSQL
     }
 }
 
@@ -780,11 +801,21 @@ private final class ValidationContext {
     weak var controller: ContentViewController?
     let importID: UUID
     let validationID: UUID
+    let presentation: SQLQueryPresentation
+    let displayedSQL: String
 
-    init(controller: ContentViewController, importID: UUID, validationID: UUID) {
+    init(
+        controller: ContentViewController,
+        importID: UUID,
+        validationID: UUID,
+        presentation: SQLQueryPresentation,
+        displayedSQL: String
+    ) {
         self.controller = controller
         self.importID = importID
         self.validationID = validationID
+        self.presentation = presentation
+        self.displayedSQL = displayedSQL
     }
 }
 
@@ -847,12 +878,13 @@ private let virguleQueryCallback: VirguleImportCallback = { event, context in
     let values = queryEvent.values.map { values in
         (0 ..< Int(queryEvent.value_count)).compactMap { values[$0].map { String(cString: $0) } }
     } ?? []
+    let message = queryEvent.message.map { String(cString: $0) } ?? ""
     let snapshot = ImportEventSnapshot(
         kind: queryEvent.kind,
         importedRows: queryEvent.imported_rows,
         totalBytes: queryEvent.total_bytes,
         values: values,
-        message: queryEvent.message.map { String(cString: $0) } ?? ""
+        message: queryContext.presentation.displayedError(message, for: queryContext.displayedSQL)
     )
     queryContext.controller?.receiveQueryDescription(snapshot, importID: queryContext.importID, viewID: queryContext.viewID)
 }
@@ -861,12 +893,13 @@ private let virguleValidationCallback: VirguleImportCallback = { event, context 
     guard let event, let context else { return }
     let validationContext = Unmanaged<ValidationContext>.fromOpaque(context).takeUnretainedValue()
     let validationEvent = event.pointee
+    let message = validationEvent.message.map { String(cString: $0) } ?? ""
     let snapshot = ImportEventSnapshot(
         kind: validationEvent.kind,
         importedRows: validationEvent.imported_rows,
         totalBytes: validationEvent.total_bytes,
         values: [],
-        message: validationEvent.message.map { String(cString: $0) } ?? ""
+        message: validationContext.presentation.displayedError(message, for: validationContext.displayedSQL)
     )
     validationContext.controller?.receiveValidation(
         snapshot,
