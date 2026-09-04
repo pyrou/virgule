@@ -99,7 +99,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [ ] Add cell, range, and column selection.
 - [x] Copy selected rows as TSV with Command-C.
 - [ ] Add local colored row annotations.
-- [ ] Add a file, bookmark, and schema sidebar.
+- [x] Add a file, bookmark, and schema sidebar.
 - [ ] Add an optional inspector (type, nulls, distinct values).
 
 ## 8. MVP persistence and quality

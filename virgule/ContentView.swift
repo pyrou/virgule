@@ -9,6 +9,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     private let queryBar = SQLQueryBar()
     private let searchBar = DatasetSearchBar()
     private let toolbarSearchField = NSSearchField()
+    private let sidebar = SidebarView()
+    private let mainSplitView = NSSplitView()
     private let contentSplitView = NSSplitView()
     private let gridContainer = NSView()
     private let tableFooterContainer = NSView()
@@ -49,6 +51,9 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
 
     override func viewDidAppear() {
         super.viewDidAppear()
+        if mainSplitView.arrangedSubviews.count == 2 {
+            mainSplitView.setPosition(236, ofDividerAt: 0)
+        }
         updateDatasetToolbarItemVisibility()
     }
 
@@ -78,6 +83,18 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         contentSplitView.addArrangedSubview(gridContainer)
         contentSplitView.addArrangedSubview(queryBar)
         contentSplitView.isHidden = true
+        mainSplitView.isVertical = true
+        mainSplitView.dividerStyle = .thin
+        mainSplitView.addArrangedSubview(sidebar)
+        mainSplitView.addArrangedSubview(contentSplitView)
+        mainSplitView.isHidden = true
+        sidebar.onOpenFile = { [weak self] in self?.openCSV(nil) }
+        sidebar.onSelectBookmark = { [weak self] bookmark in
+            guard let self else { return }
+            self.queryBar.sql = bookmark.sql
+            self.executeQuery(bookmark.sql)
+        }
+        sidebar.onAddBookmark = { [weak self] in self?.addCurrentBookmark() }
         searchBar.isHidden = true
         queryBar.toolTip = "The SQL for the current read-only CSV view."
         queryBar.onExecute = { [weak self] sql in self?.executeQuery(sql) }
@@ -121,20 +138,20 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
 
         dropView.addSubview(windowHeaderMaterial)
         dropView.addSubview(controls)
-        dropView.addSubview(contentSplitView)
+        dropView.addSubview(mainSplitView)
         windowHeaderMaterial.translatesAutoresizingMaskIntoConstraints = false
         controls.translatesAutoresizingMaskIntoConstraints = false
-        contentSplitView.translatesAutoresizingMaskIntoConstraints = false
+        mainSplitView.translatesAutoresizingMaskIntoConstraints = false
 
         emptyStateConstraints = [
             controls.centerXAnchor.constraint(equalTo: dropView.centerXAnchor),
             controls.centerYAnchor.constraint(equalTo: dropView.centerYAnchor),
         ]
         previewStateConstraints = [
-            contentSplitView.leadingAnchor.constraint(equalTo: dropView.leadingAnchor),
-            contentSplitView.trailingAnchor.constraint(equalTo: dropView.trailingAnchor),
-            contentSplitView.topAnchor.constraint(equalTo: dropView.safeAreaLayoutGuide.topAnchor),
-            contentSplitView.bottomAnchor.constraint(equalTo: dropView.bottomAnchor),
+            mainSplitView.leadingAnchor.constraint(equalTo: dropView.leadingAnchor),
+            mainSplitView.trailingAnchor.constraint(equalTo: dropView.trailingAnchor),
+            mainSplitView.topAnchor.constraint(equalTo: dropView.safeAreaLayoutGuide.topAnchor),
+            mainSplitView.bottomAnchor.constraint(equalTo: dropView.bottomAnchor),
         ]
         searchVisibleConstraints = [
             gridView.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 8),
@@ -165,6 +182,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         ])
         NSLayoutConstraint.activate(emptyStateConstraints)
         view = dropView
+        sidebar.update(sourceURL: nil, columns: [])
     }
 
     @objc func openCSV(_ sender: Any?) {
@@ -222,6 +240,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         currentValidationID = UUID()
         scheduledValidation?.cancel()
         queryBar.sql = ""
+        sidebar.clearBookmarks()
+        sidebar.update(sourceURL: url, columns: [])
         updateTableFooter()
         setGridVisible(false)
         gridView.reloadData()
@@ -262,6 +282,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
                 self.columnTitles = event.values
                 self.queryBar.completionColumns = event.values
                 self.searchBar.setColumns(event.values)
+                self.sidebar.update(sourceURL: self.sourceFileURL, columns: event.values)
                 self.baseQuerySQL = self.sourceQuery()
                 self.baseQueryReadsCSV = true
                 self.queryBar.sql = self.renderedQuerySQL()
@@ -430,6 +451,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
 
     private func setGridVisible(_ isVisible: Bool) {
         contentSplitView.isHidden = !isVisible
+        mainSplitView.isHidden = !isVisible
         searchBar.isHidden = true
         controls.isHidden = isVisible
         NSLayoutConstraint.deactivate(isVisible ? emptyStateConstraints : previewStateConstraints)
@@ -440,6 +462,15 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
             NSLayoutConstraint.activate(searchHiddenConstraints)
             setQueryPaneVisible(queryPaneVisible, animated: false)
         }
+    }
+
+    private func addCurrentBookmark() {
+        guard let sourceFileURL,
+              !queryBar.sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        sidebar.addBookmark(SidebarBookmark(
+            name: sourceFileURL.deletingPathExtension().lastPathComponent,
+            sql: queryBar.sql
+        ))
     }
 
     private func updateTableFooter() {
@@ -590,6 +621,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
             self.columnTitles = event.values
             self.savedColumnWidths = [:]
             self.searchBar.setColumns(event.values)
+            self.sidebar.update(sourceURL: self.sourceFileURL, columns: event.values)
             self.columnCount = event.values.count
             self.importedRowCount = event.importedRows
             self.detailLabel.stringValue = "\(event.importedRows) matching rows"
@@ -751,6 +783,9 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         constrainSplitPosition proposedPosition: CGFloat,
         ofSubviewAt dividerIndex: Int
     ) -> CGFloat {
+        if splitView == mainSplitView, dividerIndex == 0 {
+            return min(max(proposedPosition, 190), 320)
+        }
         guard splitView == contentSplitView, dividerIndex == 0 else { return proposedPosition }
         let minimumGridHeight: CGFloat = 220
         let minimumQueryHeight: CGFloat = 100
@@ -917,7 +952,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         return "\(baseName) export.csv"
     }
 
-    fileprivate static func displayedColumnCount(
+    static func displayedColumnCount(
         cachePathIsAvailable: Bool,
         columnTitlesCount: Int,
         columnCount: Int,
