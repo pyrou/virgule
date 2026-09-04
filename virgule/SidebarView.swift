@@ -7,13 +7,15 @@ struct SidebarBookmark: Equatable {
 
 final class SidebarView: NSView {
     var onOpenFile: (() -> Void)?
+    var onSelectRecentFile: ((URL) -> Void)?
     var onSelectBookmark: ((SidebarBookmark) -> Void)?
     var onAddBookmark: (() -> Void)?
 
     private let fileValue = NSTextField(labelWithString: "No CSV open")
-    private let schemaStack = NSStackView()
+    private let fileStack = NSStackView()
     private let bookmarkStack = NSStackView()
     private var bookmarks: [SidebarBookmark] = []
+    private var recentFiles: [URL] = []
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -25,27 +27,25 @@ final class SidebarView: NSView {
         buildView()
     }
 
-    func update(sourceURL: URL?, columns: [String]) {
+    func update(sourceURL: URL?) {
         fileValue.stringValue = sourceURL?.lastPathComponent ?? "No CSV open"
         fileValue.toolTip = sourceURL?.path
-        schemaStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
-
-        if columns.isEmpty {
-            let empty = NSTextField(labelWithString: sourceURL == nil ? "Open a CSV to inspect its columns" : "Reading schema…")
-            empty.textColor = .secondaryLabelColor
-            empty.font = .systemFont(ofSize: 12)
-            schemaStack.addArrangedSubview(empty)
-        } else {
-            for (index, column) in columns.enumerated() {
-                let label = NSTextField(labelWithString: column)
-                label.font = .systemFont(ofSize: 12)
-                label.lineBreakMode = .byTruncatingTail
-                label.toolTip = column
-                schemaStack.addArrangedSubview(label)
-                if index == 0 { label.textColor = .labelColor }
-            }
+        if let sourceURL {
+            recentFiles.removeAll { $0 == sourceURL }
+            recentFiles.insert(sourceURL, at: 0)
+            recentFiles = Array(recentFiles.prefix(8))
         }
-
+        fileStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        for (index, url) in recentFiles.enumerated() {
+            let button = NSButton(title: url.lastPathComponent, target: self, action: #selector(recentFileClicked(_:)))
+            button.tag = index
+            button.bezelStyle = .recessed
+            button.alignment = .left
+            button.image = NSImage(systemSymbolName: "doc", accessibilityDescription: "CSV file")
+            button.imagePosition = .imageLeading
+            button.toolTip = url.path
+            fileStack.addArrangedSubview(button)
+        }
     }
 
     func clearBookmarks() {
@@ -85,7 +85,10 @@ final class SidebarView: NSView {
         fileButton.alignment = .left
         fileButton.image = NSImage(systemSymbolName: "plus", accessibilityDescription: "Open")
         fileButton.imagePosition = .imageLeading
-        let fileGroup = NSStackView(views: [fileValue, fileButton])
+        fileStack.orientation = .vertical
+        fileStack.alignment = .leading
+        fileStack.spacing = 4
+        let fileGroup = NSStackView(views: [fileValue, fileStack, fileButton])
         fileGroup.orientation = .vertical
         fileGroup.alignment = .leading
         fileGroup.spacing = 6
@@ -103,14 +106,8 @@ final class SidebarView: NSView {
         bookmarkSection.addArrangedSubview(bookmarkStack)
         bookmarkSection.addArrangedSubview(addButton)
 
-        let schemaSection = section(title: "SCHEMA", symbol: "list.bullet")
-        schemaStack.orientation = .vertical
-        schemaStack.alignment = .leading
-        schemaStack.spacing = 5
-        schemaSection.addArrangedSubview(schemaStack)
         content.addArrangedSubview(fileSection)
         content.addArrangedSubview(bookmarkSection)
-        content.addArrangedSubview(schemaSection)
         scrollView.documentView = content
         addSubview(scrollView)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -141,6 +138,11 @@ final class SidebarView: NSView {
     }
 
     @objc private func openFileClicked(_ sender: Any?) { onOpenFile?() }
+
+    @objc private func recentFileClicked(_ sender: NSButton) {
+        guard recentFiles.indices.contains(sender.tag) else { return }
+        onSelectRecentFile?(recentFiles[sender.tag])
+    }
 
     @objc private func addBookmarkClicked(_ sender: Any?) { onAddBookmark?() }
 

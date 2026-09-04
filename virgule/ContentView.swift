@@ -89,6 +89,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         mainSplitView.addArrangedSubview(contentSplitView)
         mainSplitView.isHidden = true
         sidebar.onOpenFile = { [weak self] in self?.openCSV(nil) }
+        sidebar.onSelectRecentFile = { [weak self] url in self?.selectSourceFile(url) }
         sidebar.onSelectBookmark = { [weak self] bookmark in
             guard let self else { return }
             self.queryBar.sql = bookmark.sql
@@ -182,7 +183,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         ])
         NSLayoutConstraint.activate(emptyStateConstraints)
         view = dropView
-        sidebar.update(sourceURL: nil, columns: [])
+        sidebar.update(sourceURL: nil)
     }
 
     @objc func openCSV(_ sender: Any?) {
@@ -241,7 +242,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         scheduledValidation?.cancel()
         queryBar.sql = ""
         sidebar.clearBookmarks()
-        sidebar.update(sourceURL: url, columns: [])
+        sidebar.update(sourceURL: url)
         updateTableFooter()
         setGridVisible(false)
         gridView.reloadData()
@@ -282,7 +283,6 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
                 self.columnTitles = event.values
                 self.queryBar.completionColumns = event.values
                 self.searchBar.setColumns(event.values)
-                self.sidebar.update(sourceURL: self.sourceFileURL, columns: event.values)
                 self.baseQuerySQL = self.sourceQuery()
                 self.baseQueryReadsCSV = true
                 self.queryBar.sql = self.renderedQuerySQL()
@@ -621,7 +621,6 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
             self.columnTitles = event.values
             self.savedColumnWidths = [:]
             self.searchBar.setColumns(event.values)
-            self.sidebar.update(sourceURL: self.sourceFileURL, columns: event.values)
             self.columnCount = event.values.count
             self.importedRowCount = event.importedRows
             self.detailLabel.stringValue = "\(event.importedRows) matching rows"
