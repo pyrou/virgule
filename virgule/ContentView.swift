@@ -39,6 +39,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     private var datasetSearch: DatasetSearch?
     private var currentViewID = UUID()
     private var currentValidationID = UUID()
+    private var statisticsPopover: NSPopover?
     private var scheduledValidation: DispatchWorkItem?
     private let pageSize = 256
     private let maximumCachedPages = 8
@@ -403,15 +404,57 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
 
     @objc private func showColumnStatistics(_ sender: NSMenuItem) {
         let column = sender.tag
-        let values = cachedRows.values.compactMap { row in row.values.indices.contains(column) ? row.values[column] : nil }
-        let numbers = values.compactMap(Double.init)
-        let average = numbers.isEmpty ? "—" : String(format: "%.2f", numbers.reduce(0, +) / Double(numbers.count))
         let title = sender.representedObject as? String ?? "Column"
-        let minimum = values.min() ?? "—"
-        let maximum = values.max() ?? "—"
-        let nonEmptyValues = values.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        let uniqueCount = Set(nonEmptyValues).count
-        detailLabel.stringValue = "\(title): \(uniqueCount) unique values · \(nonEmptyValues.count) non-empty values · min \(minimum) · max \(maximum) · average \(average)"
+        guard let cachePath, let importID = currentImportID, columnTitles.indices.contains(column) else { return }
+
+        let popoverController = StatisticsPopoverViewController(columnTitle: title)
+        _ = popoverController.view
+        popoverController.showLoading()
+        let popover = NSPopover()
+        popover.contentViewController = popoverController
+        popover.behavior = .transient
+        popover.contentSize = NSSize(width: 300, height: 236)
+        statisticsPopover?.close()
+        statisticsPopover = popover
+        popover.show(relativeTo: gridView.bounds.insetBy(dx: 24, dy: 24), of: gridView, preferredEdge: .maxX)
+
+        let viewID = currentViewID
+        let sourceSQL = (activeQuerySQL ?? renderedQuerySQL()).trimmingCharacters(in: CharacterSet(charactersIn: "; \n\t"))
+        let quotedColumn = Self.quoteIdentifier(columnTitles[column])
+        let expression = "CAST(\(quotedColumn) AS TEXT)"
+        let wrappedSQL = """
+        SELECT COUNT(*),
+               SUM(CASE WHEN TRIM(COALESCE(\(expression), '')) <> '' THEN 1 ELSE 0 END),
+               COUNT(DISTINCT CASE WHEN TRIM(COALESCE(\(expression), '')) <> '' THEN \(expression) END),
+               MIN(CASE WHEN TRIM(COALESCE(\(expression), '')) <> '' THEN \(expression) END),
+               MAX(CASE WHEN TRIM(COALESCE(\(expression), '')) <> '' THEN \(expression) END),
+               AVG(CASE WHEN TRIM(COALESCE(\(expression), '')) <> '' THEN CAST(\(quotedColumn) AS REAL) END)
+        FROM (\n\(sourceSQL)\n) AS "__virgule_statistics_view"
+        """
+        let context = Unmanaged.passRetained(StatisticsContext(
+            controller: self,
+            importID: importID,
+            viewID: viewID
+        ))
+        DispatchQueue.global(qos: .userInitiated).async {
+            defer { context.release() }
+            _ = cachePath.withCString { path in
+                wrappedSQL.withCString { query in
+                    virgule_engine_read_query_page(self.engine, path, query, 0, 1, virguleStatisticsCallback, context.toOpaque())
+                }
+            }
+        }
+    }
+
+    fileprivate func receiveStatistics(_ event: StatisticsSnapshot, importID: UUID, viewID: UUID) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.currentImportID == importID, self.currentViewID == viewID else { return }
+            if let error = event.error {
+                self.statisticsPopover?.contentViewController.flatMap { $0 as? StatisticsPopoverViewController }?.showError(error)
+            } else {
+                self.statisticsPopover?.contentViewController.flatMap { $0 as? StatisticsPopoverViewController }?.show(event)
+            }
+        }
     }
 
     func grid(_ grid: VirtualizedGridView, didResizeColumn column: Int, width: CGFloat) {
@@ -1133,6 +1176,91 @@ private final class QueryContext {
     }
 }
 
+private struct StatisticsSnapshot {
+    let values: [String]
+    let error: String?
+}
+
+private final class StatisticsContext {
+    weak var controller: ContentViewController?
+    let importID: UUID
+    let viewID: UUID
+
+    init(controller: ContentViewController, importID: UUID, viewID: UUID) {
+        self.controller = controller
+        self.importID = importID
+        self.viewID = viewID
+    }
+}
+
+private final class StatisticsPopoverViewController: NSViewController {
+    private let columnTitle: String
+    private let stack = NSStackView()
+
+    init(columnTitle: String) {
+        self.columnTitle = columnTitle
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func loadView() {
+        let view = NSView()
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 7
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
+            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -18),
+            stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
+            stack.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -16),
+        ])
+        self.view = view
+    }
+
+    func showLoading() {
+        replace(with: [label("Statistics for \(columnTitle)", bold: true), label("Calculating…")])
+    }
+
+    func show(_ event: StatisticsSnapshot) {
+        guard event.values.count >= 6 else { showError("No statistics available."); return }
+        replace(with: [
+            label("Statistics for \(columnTitle)", bold: true),
+            label("Values: \(event.values[0])"),
+            label("Non-empty: \(event.values[1])"),
+            label("Unique: \(event.values[2])"),
+            label("Minimum: \(display(event.values[3]))"),
+            label("Maximum: \(display(event.values[4]))"),
+            label("Average: \(display(event.values[5]))"),
+        ])
+    }
+
+    func showError(_ message: String) {
+        replace(with: [label("Statistics for \(columnTitle)", bold: true), label(message)])
+    }
+
+    private func display(_ value: String) -> String {
+        guard !value.isEmpty else { return "—" }
+        if let number = Double(value) {
+            return number.rounded() == number ? String(Int(number)) : String(format: "%.2f", number)
+        }
+        return value
+    }
+
+    private func label(_ text: String, bold: Bool = false) -> NSTextField {
+        let result = NSTextField(wrappingLabelWithString: text)
+        if bold { result.font = .boldSystemFont(ofSize: NSFont.systemFontSize) }
+        return result
+    }
+
+    private func replace(with views: [NSView]) {
+        stack.arrangedSubviews.forEach { stack.removeArrangedSubview($0); $0.removeFromSuperview() }
+        views.forEach { stack.addArrangedSubview($0) }
+    }
+}
+
 private final class ValidationContext {
     weak var controller: ContentViewController?
     let importID: UUID
@@ -1222,6 +1350,21 @@ private let virgulePageCallback: VirgulePageCallback = { row, context in
         errorMessage: pageRow.result_row == Int.max ? message : nil
     )
     pageContext.controller?.receivePageRow(snapshot, importID: pageContext.importID, viewID: pageContext.viewID, offset: pageContext.offset)
+}
+
+private let virguleStatisticsCallback: VirgulePageCallback = { row, context in
+    guard let row, let context else { return }
+    let statisticsContext = Unmanaged<StatisticsContext>.fromOpaque(context).takeUnretainedValue()
+    let pageRow = row.pointee
+    let error = pageRow.result_row == Int.max ? (pageRow.message.map { String(cString: $0) } ?? "Could not calculate statistics.") : nil
+    let values = pageRow.values.map { values in
+        (0 ..< Int(pageRow.value_count)).compactMap { index in values[index].map { String(cString: $0) } }
+    } ?? []
+    statisticsContext.controller?.receiveStatistics(
+        StatisticsSnapshot(values: values, error: error),
+        importID: statisticsContext.importID,
+        viewID: statisticsContext.viewID
+    )
 }
 
 private let virguleExportPageCallback: VirgulePageCallback = { row, context in
