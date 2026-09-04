@@ -13,3 +13,7 @@ Use [`docs/ROADMAP.md`](docs/ROADMAP.md) as the source of truth.
 5. Repeat.
 
 Delegate independent, well-bounded work to sub-agents when that meaningfully speeds up the iteration. Keep ownership of integration, verification, roadmap updates, and commits.
+
+## Compilation
+
+Use MCP tools to compile the project. Don't use command-line tools directly to compile the project, as they interfere with the Derived Data Cache of the runing Xcode instance.

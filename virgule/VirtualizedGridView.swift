@@ -75,6 +75,10 @@ final class VirtualizedGridView: NSView, NSMenuItemValidation {
     /// Model row indexes selected from the row-number gutter. This is kept in
     /// the grid (rather than in recycled views) so selection survives scrolls.
     private(set) var selectedRows = IndexSet()
+    /// The row from which Shift-click selections extend. This also lives in
+    /// the grid so virtualized row-number views never lose the selection's
+    /// starting point when they are recycled.
+    private var selectionAnchorRow: Int?
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -123,8 +127,15 @@ final class VirtualizedGridView: NSView, NSMenuItemValidation {
         rowNumberClipView.drawsBackground = false
         rowNumberClipView.documentView = rowNumberDocumentView
         rowNumberDocumentView.grid = self
-        rowNumberDocumentView.selectRow = { [weak self] row, extendsSelection in
-            self?.selectRow(row, extendsSelection: extendsSelection)
+        rowNumberDocumentView.beginRowSelection = { [weak self] row, preservesSelection, extendsRange in
+            self?.selectRow(
+                row,
+                preservesSelection: preservesSelection,
+                extendsRange: extendsRange
+            )
+        }
+        rowNumberDocumentView.extendRowSelection = { [weak self] origin, row, preservesSelection in
+            self?.selectRowRange(from: origin, through: row, preservesSelection: preservesSelection)
         }
 
         scrollView.drawsBackground = false
@@ -194,6 +205,9 @@ final class VirtualizedGridView: NSView, NSMenuItemValidation {
     func reloadData() {
         let rowCount = max(0, dataSource?.numberOfRows(in: self) ?? 0)
         selectedRows = selectedRows.intersection(IndexSet(integersIn: 0..<rowCount))
+        if let selectionAnchorRow, !selectedRows.contains(selectionAnchorRow) {
+            self.selectionAnchorRow = selectedRows.first
+        }
         updateDocumentMetrics()
     }
 
@@ -201,6 +215,7 @@ final class VirtualizedGridView: NSView, NSMenuItemValidation {
     func setSelectedRows(_ rows: IndexSet) {
         let rowCount = max(0, dataSource?.numberOfRows(in: self) ?? 0)
         selectedRows = rows.intersection(IndexSet(integersIn: 0..<rowCount))
+        selectionAnchorRow = selectedRows.first
         refreshVisibleViews()
     }
 
@@ -274,9 +289,21 @@ final class VirtualizedGridView: NSView, NSMenuItemValidation {
         selectedRows.contains(row)
     }
 
-    private func selectRow(_ row: Int, extendsSelection: Bool) {
-        guard row >= 0, row < (dataSource?.numberOfRows(in: self) ?? 0) else { return }
-        if extendsSelection {
+    /// Handles a row-number click. Shift extends from the most recently
+    /// selected anchor, while Command-Shift keeps any separate selected rows.
+    @discardableResult
+    private func selectRow(
+        _ row: Int,
+        preservesSelection: Bool,
+        extendsRange: Bool
+    ) -> Int? {
+        guard row >= 0, row < (dataSource?.numberOfRows(in: self) ?? 0) else { return nil }
+        if extendsRange {
+            let origin = selectionAnchorRow ?? row
+            extendRowSelection(to: row, preservesSelection: preservesSelection)
+            return origin
+        }
+        if preservesSelection {
             if selectedRows.contains(row) {
                 selectedRows.remove(row)
             } else {
@@ -285,6 +312,33 @@ final class VirtualizedGridView: NSView, NSMenuItemValidation {
         } else {
             selectedRows = IndexSet(integer: row)
         }
+        selectionAnchorRow = row
+        window?.makeFirstResponder(self)
+        refreshVisibleViews()
+        return row
+    }
+
+    /// Extends a row-number selection from the stored Shift-click anchor.
+    /// Command-Shift retains rows selected outside the resulting range.
+    func extendRowSelection(to row: Int, preservesSelection: Bool) {
+        let origin = selectionAnchorRow ?? row
+        selectRowRange(from: origin, through: row, preservesSelection: preservesSelection)
+    }
+
+    /// Applies the continuous range represented by a row-number gutter drag.
+    /// Command-drag keeps selections that existed before the drag began.
+    func selectRowRange(from origin: Int, through row: Int, preservesSelection: Bool) {
+        let rowCount = max(0, dataSource?.numberOfRows(in: self) ?? 0)
+        guard origin >= 0, origin < rowCount, row >= 0, row < rowCount else { return }
+        let lowerBound = min(origin, row)
+        let upperBound = max(origin, row)
+        let range = IndexSet(integersIn: lowerBound..<(upperBound + 1))
+        if preservesSelection {
+            selectedRows.formUnion(range)
+        } else {
+            selectedRows = range
+        }
+        selectionAnchorRow = origin
         window?.makeFirstResponder(self)
         refreshVisibleViews()
     }
@@ -502,7 +556,10 @@ private final class VirtualizedGridRowNumberDocumentView: NSView {
     weak var grid: VirtualizedGridView? {
         didSet { refreshVisibleViews() }
     }
-    var selectRow: ((Int, Bool) -> Void)?
+    /// Returns the selection origin, which lets a Shift-click drag continue
+    /// to extend from the pre-existing selection anchor.
+    var beginRowSelection: ((Int, Bool, Bool) -> Int?)?
+    var extendRowSelection: ((Int, Int, Bool) -> Void)?
 
     override var isFlipped: Bool { true }
 
@@ -545,7 +602,8 @@ private final class VirtualizedGridRowNumberDocumentView: NSView {
             label.stringValue = String(grid?.rowNumber(forRow: row) ?? (row + 1))
             label.row = row
             label.isSelected = grid?.isRowSelected(row) ?? false
-            label.selectRow = selectRow
+            label.beginRowSelection = beginRowSelection
+            label.extendRowSelection = extendRowSelection
         }
     }
 
@@ -592,7 +650,10 @@ private final class VirtualizedGridRowNumberView: NSView {
     var isSelected = false {
         didSet { updateSelectionAppearance() }
     }
-    var selectRow: ((Int, Bool) -> Void)?
+    var beginRowSelection: ((Int, Bool, Bool) -> Int?)?
+    var extendRowSelection: ((Int, Int, Bool) -> Void)?
+    private var dragOriginRow: Int?
+    private var preservesSelectionWhileDragging = false
 
     init() {
         super.init(frame: .zero)
@@ -617,7 +678,34 @@ private final class VirtualizedGridRowNumberView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        selectRow?(row, event.modifierFlags.contains(.command))
+        let preservesSelection = event.modifierFlags.contains(.command)
+        let extendsRange = event.modifierFlags.contains(.shift)
+        dragOriginRow = beginRowSelection?(row, preservesSelection, extendsRange) ?? row
+        preservesSelectionWhileDragging = preservesSelection
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let origin = dragOriginRow,
+              let target = row(at: convert(event.locationInWindow, from: nil))
+        else { return }
+        extendRowSelection?(origin, target, preservesSelectionWhileDragging)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        dragOriginRow = nil
+    }
+
+    private func row(at location: NSPoint) -> Int? {
+        guard let superview else { return nil }
+        let position = superview.convert(location, from: self)
+        var target = superview.hitTest(position)
+        while let view = target {
+            if let rowNumberView = view as? VirtualizedGridRowNumberView {
+                return rowNumberView.row
+            }
+            target = view.superview
+        }
+        return nil
     }
 
     private func updateSelectionAppearance() {
