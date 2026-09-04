@@ -40,10 +40,12 @@ struct DatasetSearch: Equatable {
 
 final class DatasetSearchBar: NSView {
     var onSearchChanged: ((DatasetSearch?) -> Void)?
+    var onDismiss: (() -> Void)?
 
     private let searchField = NSSearchField()
     private let columnPopup = NSPopUpButton()
     private let regexButton = NSButton(checkboxWithTitle: "Regex", target: nil, action: nil)
+    private let closeButton = NSButton(image: NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Close search")!, target: nil, action: nil)
     private let messageLabel = NSTextField(labelWithString: "")
     private var columns: [String] = []
 
@@ -62,11 +64,18 @@ final class DatasetSearchBar: NSView {
         regexButton.setContentCompressionResistancePriority(.required, for: .horizontal)
         regexButton.toolTip = "Interpret the search text as a regular expression"
 
+        closeButton.target = self
+        closeButton.action = #selector(dismissSearch(_:))
+        closeButton.bezelStyle = .inline
+        closeButton.toolTip = "Close search"
+        closeButton.setContentHuggingPriority(.required, for: .horizontal)
+        closeButton.setContentCompressionResistancePriority(.required, for: .horizontal)
+
         messageLabel.textColor = .systemRed
         messageLabel.font = .systemFont(ofSize: 11)
         messageLabel.lineBreakMode = .byTruncatingTail
 
-        let stack = NSStackView(views: [searchField, columnPopup, regexButton, messageLabel])
+        let stack = NSStackView(views: [searchField, columnPopup, regexButton, messageLabel, closeButton])
         stack.orientation = .horizontal
         stack.alignment = .centerY
         stack.spacing = 8
@@ -136,5 +145,9 @@ final class DatasetSearchBar: NSView {
             messageLabel.stringValue = ""
         }
         onSearchChanged?(search)
+    }
+
+    @objc private func dismissSearch(_ sender: Any?) {
+        onDismiss?()
     }
 }

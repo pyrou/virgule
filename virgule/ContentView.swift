@@ -12,6 +12,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private let controls = NSStackView()
     private var emptyStateConstraints: [NSLayoutConstraint] = []
     private var previewStateConstraints: [NSLayoutConstraint] = []
+    private var searchVisibleConstraints: [NSLayoutConstraint] = []
+    private var searchHiddenConstraints: [NSLayoutConstraint] = []
     private var currentImportID: UUID?
     private var previewRows: [[String]] = []
     private var cachePath: String?
@@ -63,6 +65,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         queryBar.onExecute = { [weak self] sql in self?.executeQuery(sql) }
         queryBar.onSQLChanged = { [weak self] sql in self?.validateQueryWhileTyping(sql) }
         searchBar.onSearchChanged = { [weak self] search in self?.applyDatasetSearch(search) }
+        searchBar.onDismiss = { [weak self] in self?.hideDatasetSearch() }
 
         openButton.bezelStyle = .rounded
         openButton.target = self
@@ -99,10 +102,15 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
             searchBar.leadingAnchor.constraint(equalTo: dropView.leadingAnchor, constant: 16),
             searchBar.trailingAnchor.constraint(equalTo: dropView.trailingAnchor, constant: -16),
             searchBar.heightAnchor.constraint(equalToConstant: 26),
-            gridView.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 8),
             gridView.leadingAnchor.constraint(equalTo: dropView.leadingAnchor),
             gridView.trailingAnchor.constraint(equalTo: dropView.trailingAnchor),
             gridView.bottomAnchor.constraint(equalTo: dropView.bottomAnchor),
+        ]
+        searchVisibleConstraints = [
+            gridView.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 8),
+        ]
+        searchHiddenConstraints = [
+            gridView.topAnchor.constraint(equalTo: queryBar.bottomAnchor, constant: 8),
         ]
         NSLayoutConstraint.activate([
             windowHeaderMaterial.leadingAnchor.constraint(equalTo: dropView.leadingAnchor),
@@ -347,10 +355,15 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private func setGridVisible(_ isVisible: Bool) {
         gridView.isHidden = !isVisible
         queryBar.isHidden = !isVisible
-        searchBar.isHidden = !isVisible
+        searchBar.isHidden = true
         controls.isHidden = isVisible
         NSLayoutConstraint.deactivate(isVisible ? emptyStateConstraints : previewStateConstraints)
         NSLayoutConstraint.activate(isVisible ? previewStateConstraints : emptyStateConstraints)
+        NSLayoutConstraint.deactivate(searchVisibleConstraints)
+        NSLayoutConstraint.deactivate(searchHiddenConstraints)
+        if isVisible {
+            NSLayoutConstraint.activate(searchHiddenConstraints)
+        }
     }
 
     private func executeQuery(_ sql: String, baseQuery: String? = nil, sorting: [SortDescriptor]? = nil) {
@@ -516,10 +529,28 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
            event.charactersIgnoringModifiers?.lowercased() == "f",
            cachePath != nil {
+            showDatasetSearch()
             searchBar.focusSearchField()
             return true
         }
         return super.performKeyEquivalent(with: event)
+    }
+
+    private func showDatasetSearch() {
+        guard searchBar.isHidden else { return }
+        searchBar.isHidden = false
+        NSLayoutConstraint.deactivate(searchHiddenConstraints)
+        NSLayoutConstraint.activate(searchVisibleConstraints)
+    }
+
+    private func hideDatasetSearch() {
+        guard !searchBar.isHidden else { return }
+        searchBar.clear()
+        applyDatasetSearch(nil)
+        searchBar.isHidden = true
+        NSLayoutConstraint.deactivate(searchVisibleConstraints)
+        NSLayoutConstraint.activate(searchHiddenConstraints)
+        view.window?.makeFirstResponder(gridView)
     }
 
     nonisolated private static func quoteIdentifier(_ identifier: String) -> String {
