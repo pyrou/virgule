@@ -50,6 +50,12 @@ int32_t virgule_engine_import_csv(
     void *context
 );
 
+/// Returns a saved grid-column width, or NaN when none has been saved.
+double virgule_engine_column_width(const char *cache_path, const char *column_name);
+
+/// Saves a grid-column width. Returns zero on success.
+int32_t virgule_engine_set_column_width(const char *cache_path, const char *column_name, double width);
+
 /// One borrowed CSV result row. The values and message pointers are valid only
 /// while the page callback runs. `result_row` is the zero-based row index in
 /// the current result, while `source_row` is the stable SQLite rowid.

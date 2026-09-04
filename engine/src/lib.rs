@@ -9,7 +9,7 @@ use std::sync::Arc;
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
 use rusqlite::functions::FunctionFlags;
 use rusqlite::types::ValueRef;
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 use regex::Regex;
 
 /// Opaque state: its layout is intentionally private to Rust.
@@ -142,6 +142,15 @@ impl CsvCache {
         })?;
         let path = cache_path_for(source_file, cache_directory);
         let connection = Connection::open(&path)?;
+        // Keep view preferences outside the import tables: `csv` and
+        // `csv_columns` are deliberately recreated for every import, whereas
+        // a user's column widths belong to the source file cache.
+        connection.execute_batch(
+            "CREATE TABLE IF NOT EXISTS virgule_column_widths (\
+                 column_name TEXT PRIMARY KEY,\
+                 width REAL NOT NULL CHECK(width > 0)\
+             );",
+        )?;
         Ok(Self { connection, path })
     }
 
@@ -153,6 +162,27 @@ impl CsvCache {
     /// Provides the cache connection to the importer and query engine.
     pub fn connection(&self) -> &Connection {
         &self.connection
+    }
+
+    /// Returns the saved grid width for a result-column name, if any.
+    pub fn column_width(&self, column_name: &str) -> rusqlite::Result<Option<f64>> {
+        self.connection
+            .query_row(
+                "SELECT width FROM virgule_column_widths WHERE column_name = ?1",
+                [column_name],
+                |row| row.get(0),
+            )
+            .optional()
+    }
+
+    /// Saves a grid width by result-column name rather than transient position.
+    pub fn set_column_width(&self, column_name: &str, width: f64) -> rusqlite::Result<()> {
+        self.connection.execute(
+            "INSERT INTO virgule_column_widths (column_name, width) VALUES (?1, ?2) \
+             ON CONFLICT(column_name) DO UPDATE SET width = excluded.width",
+            (column_name, width),
+        )?;
+        Ok(())
     }
 
     /// Validates one read-only SQLite query without executing it.

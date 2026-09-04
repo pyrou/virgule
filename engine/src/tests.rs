@@ -87,6 +87,36 @@ fn import_reports_unique_column_labels_for_duplicate_csv_headers() {
 }
 
 #[test]
+fn column_widths_survive_reimport_and_are_keyed_by_name() {
+    let directory = std::env::temp_dir().join(format!(
+        "virgule-engine-column-widths-{}",
+        std::process::id()
+    ));
+    fs::create_dir_all(&directory).expect("creates fixture directory");
+    let source = directory.join("people.csv");
+    let cache_directory = directory.join("cache");
+    fs::write(&source, b"id,name,description\n1,Ada,Mathematician\n")
+        .expect("writes CSV fixture");
+
+    import_source_file(&source, &cache_directory, |_| {}).expect("imports fixture");
+    let cache_path = cache_path_for(&source, &cache_directory);
+    let cache = CsvCache::open_for_source(&source, &cache_directory).expect("opens cache");
+    cache.set_column_width("description", 324.0).expect("saves width");
+
+    fs::write(&source, b"description,id,name\nMathematician,1,Ada\n")
+        .expect("rewrites CSV fixture");
+    import_source_file(&source, &cache_directory, |_| {}).expect("reimports fixture");
+    let cache = CsvCache::open_for_source(&source, &cache_directory).expect("reopens cache");
+    assert_eq!(cache.column_width("description").expect("reads width"), Some(324.0));
+    assert_eq!(cache.column_width("id").expect("reads missing width"), None);
+
+    fs::remove_file(cache_path).expect("removes cache fixture");
+    fs::remove_dir(cache_directory).expect("removes cache directory");
+    fs::remove_file(source).expect("removes CSV fixture");
+    fs::remove_dir(directory).expect("removes fixture directory");
+}
+
+#[test]
 fn query_cache_supports_regular_expression_search() {
     let directory = std::env::temp_dir().join(format!("virgule-engine-regexp-{}", std::process::id()));
     fs::create_dir_all(&directory).expect("creates fixture directory");

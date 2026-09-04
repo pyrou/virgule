@@ -29,6 +29,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     private var loadingPageOffsets = Set<Int>()
     private var columnCount = 0
     private var columnTitles: [String] = []
+    private var savedColumnWidths: [String: CGFloat] = [:]
     private var activeQuerySQL: String?
     private var pendingQuerySQL: String?
     private var baseQuerySQL = ""
@@ -186,6 +187,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         loadingPageOffsets = []
         columnCount = 0
         columnTitles = []
+        savedColumnWidths = [:]
         queryBar.completionColumns = []
         activeQuerySQL = nil
         pendingQuerySQL = nil
@@ -258,6 +260,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
                 self.sourceRowCount = event.importedRows
                 self.updateTableFooter()
                 self.setGridVisible(true)
+                self.restoreSavedColumnWidths()
                 self.gridView.reloadData()
             case VIRGULE_IMPORT_ERROR.rawValue:
                 self.titleLabel.stringValue = "Could not import the CSV"
@@ -320,6 +323,13 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         sortDescriptors.first(where: { $0.column == column })?.direction
     }
 
+    func grid(_ grid: VirtualizedGridView, didResizeColumn column: Int, width: CGFloat) {
+        guard let cachePath, columnTitles.indices.contains(column) else { return }
+        let columnName = columnTitles[column]
+        savedColumnWidths[columnName] = width
+        persistColumnWidth(width, named: columnName, in: cachePath)
+    }
+
     func grid(_ grid: VirtualizedGridView, willDisplayRows rows: Range<Int>) {
         guard let cachePath, !rows.isEmpty else { return }
         let firstPage = (rows.lowerBound / pageSize) * pageSize
@@ -374,6 +384,9 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     private func finishLoadingPage(at offset: Int, importID: UUID, viewID: UUID) {
         guard currentImportID == importID, currentViewID == viewID else { return }
         loadingPageOffsets.remove(offset)
+        if offset == 0 {
+            establishInitialColumnWidths()
+        }
         trimCachedPages(around: offset)
         gridView.reloadData()
     }
@@ -494,11 +507,64 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
             self.cachedRows = [:]
             self.loadingPageOffsets = []
             self.columnTitles = event.values
+            self.savedColumnWidths = [:]
             self.searchBar.setColumns(event.values)
             self.columnCount = event.values.count
             self.importedRowCount = event.importedRows
             self.detailLabel.stringValue = "\(event.importedRows) matching rows"
+            self.restoreSavedColumnWidths()
             self.gridView.reloadData()
+        }
+    }
+
+    /// Loads widths from the SQLite cache on a worker queue. This runs after a
+    /// query schema is known, so saved names can be mapped to any new order.
+    private func restoreSavedColumnWidths() {
+        guard let cachePath, let importID = currentImportID else { return }
+        let titles = columnTitles
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var widths: [String: CGFloat] = [:]
+            for title in titles {
+                let width = cachePath.withCString { path in
+                    title.withCString { name in virgule_engine_column_width(path, name) }
+                }
+                if width.isFinite, width > 0 {
+                    widths[title] = CGFloat(width)
+                }
+            }
+            DispatchQueue.main.async {
+                guard let self, self.currentImportID == importID else { return }
+                self.savedColumnWidths.merge(widths) { _, savedWidth in savedWidth }
+                self.gridView.restoreColumnWidths(widths)
+            }
+        }
+    }
+
+    /// Sizes only names that have no saved width, based on the first 15 rows
+    /// already fetched for the current SQL result.
+    private func establishInitialColumnWidths() {
+        guard let cachePath, !columnTitles.isEmpty else { return }
+        let sample = (0..<15).compactMap { cachedRows[$0]?.values }
+        guard !sample.isEmpty else { return }
+        var newWidths: [String: CGFloat] = [:]
+        for (column, title) in columnTitles.enumerated() where savedColumnWidths[title] == nil {
+            let values = sample.compactMap { $0.indices.contains(column) ? $0[column] : nil }
+            let width = VirtualizedGridView.optimalColumnWidth(title: title, values: values)
+            savedColumnWidths[title] = width
+            newWidths[title] = width
+            persistColumnWidth(width, named: title, in: cachePath)
+        }
+        guard !newWidths.isEmpty else { return }
+        gridView.restoreColumnWidths(newWidths)
+    }
+
+    private func persistColumnWidth(_ width: CGFloat, named columnName: String, in cachePath: String) {
+        DispatchQueue.global(qos: .utility).async {
+            _ = cachePath.withCString { path in
+                columnName.withCString { name in
+                    virgule_engine_set_column_width(path, name, Double(width))
+                }
+            }
         }
     }
 

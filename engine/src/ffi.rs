@@ -2,6 +2,7 @@
 
 use std::ffi::{c_void, CStr, CString};
 use std::fmt;
+use std::f64;
 use std::os::raw::c_char;
 use std::path::{Path, PathBuf};
 
@@ -211,6 +212,68 @@ pub unsafe extern "C" fn virgule_engine_import_csv(
         emit_ffi_error(callback, context, &error);
     }
     0
+}
+
+/// Reads one persisted grid-column width. `NaN` means that no width was saved
+/// (or that the cache could not be opened).
+///
+/// # Safety
+/// `cache_path` and `column_name` must be NUL-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn virgule_engine_column_width(
+    cache_path: *const c_char,
+    column_name: *const c_char,
+) -> f64 {
+    if cache_path.is_null() || column_name.is_null() {
+        return f64::NAN;
+    }
+    // SAFETY: required by this function's C contract.
+    let Ok(cache_path) = unsafe { CStr::from_ptr(cache_path) }.to_str() else {
+        return f64::NAN;
+    };
+    // SAFETY: required by this function's C contract.
+    let Ok(column_name) = unsafe { CStr::from_ptr(column_name) }.to_str() else {
+        return f64::NAN;
+    };
+    let Ok(connection) = open_query_cache(cache_path) else {
+        return f64::NAN;
+    };
+    let cache = CsvCache {
+        connection,
+        path: PathBuf::from(cache_path),
+    };
+    cache.column_width(column_name).ok().flatten().unwrap_or(f64::NAN)
+}
+
+/// Persists one grid-column width. Returns zero on success.
+///
+/// # Safety
+/// `cache_path` and `column_name` must be NUL-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn virgule_engine_set_column_width(
+    cache_path: *const c_char,
+    column_name: *const c_char,
+    width: f64,
+) -> i32 {
+    if cache_path.is_null() || column_name.is_null() || !width.is_finite() || width <= 0.0 {
+        return -1;
+    }
+    // SAFETY: required by this function's C contract.
+    let Ok(cache_path) = unsafe { CStr::from_ptr(cache_path) }.to_str() else {
+        return -1;
+    };
+    // SAFETY: required by this function's C contract.
+    let Ok(column_name) = unsafe { CStr::from_ptr(column_name) }.to_str() else {
+        return -1;
+    };
+    let Ok(connection) = open_query_cache(cache_path) else {
+        return -1;
+    };
+    let cache = CsvCache {
+        connection,
+        path: PathBuf::from(cache_path),
+    };
+    if cache.set_column_width(column_name, width).is_ok() { 0 } else { -1 }
 }
 
 fn emit_ffi_page_error(

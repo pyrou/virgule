@@ -22,6 +22,8 @@ protocol VirtualizedGridDataSource: AnyObject {
     /// columns.
     func grid(_ grid: VirtualizedGridView, didRequestSortColumn column: Int, appending: Bool)
     func grid(_ grid: VirtualizedGridView, sortDirectionForColumn column: Int) -> GridSortDirection?
+    /// Records a user-initiated resize by stable result-column title.
+    func grid(_ grid: VirtualizedGridView, didResizeColumn column: Int, width: CGFloat)
     /// Announces the rows currently needed to render the viewport. Data
     /// sources must return immediately from value lookup and can load these
     /// rows asynchronously from a paginated backing store.
@@ -42,6 +44,8 @@ extension VirtualizedGridDataSource {
     func grid(_ grid: VirtualizedGridView, didRequestSortColumn column: Int, appending: Bool) {}
 
     func grid(_ grid: VirtualizedGridView, sortDirectionForColumn column: Int) -> GridSortDirection? { nil }
+
+    func grid(_ grid: VirtualizedGridView, didResizeColumn column: Int, width: CGFloat) {}
 }
 
 /// A scrollable AppKit grid which creates row and cell views only for the
@@ -183,6 +187,30 @@ final class VirtualizedGridView: NSView {
         updateDocumentMetrics()
     }
 
+    /// Restores widths using result-column titles, so a SQL query may reorder
+    /// its selected columns without changing the user's layout.
+    func restoreColumnWidths(_ widths: [String: CGFloat]) {
+        let columns = max(0, dataSource?.numberOfColumns(in: self) ?? 0)
+        columnLayout.updateColumnCount(columns)
+        for column in 0..<columns {
+            let title = title(forColumn: column)
+            if let width = widths[title] {
+                _ = columnLayout.setWidth(width, forColumn: column)
+            }
+        }
+        updateDocumentMetrics()
+    }
+
+    /// Computes a readable initial width from the header and a bounded sample.
+    static func optimalColumnWidth(title: String, values: [String]) -> CGFloat {
+        let font = NSFont.systemFont(ofSize: 13)
+        let widestText = ([title] + values).map {
+            ceil(($0 as NSString).size(withAttributes: [.font: font]).width)
+        }.max() ?? 0
+        // Matches the horizontal insets used by header and body cells.
+        return min(480, max(60, widestText + 24))
+    }
+
     fileprivate func value(forRow row: Int, column: Int) -> String {
         dataSource?.grid(self, valueForRow: row, column: column) ?? ""
     }
@@ -227,6 +255,7 @@ final class VirtualizedGridView: NSView {
 
     private func setWidth(_ width: CGFloat, forColumn column: Int) {
         guard columnLayout.setWidth(width, forColumn: column) else { return }
+        dataSource?.grid(self, didResizeColumn: column, width: columnLayout.width(forColumn: column))
         updateDocumentMetrics()
     }
 
