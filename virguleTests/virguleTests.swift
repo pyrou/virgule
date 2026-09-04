@@ -71,6 +71,18 @@ struct virguleTests {
         #expect(elapsed < .seconds(1))
     }
 
+    @Test func gridCopiesMultipleSelectedRowsAsTSV() {
+        let dataSource = GridDataSource(rows: 4, columns: 3)
+        let grid = VirtualizedGridView(frame: NSRect(x: 0, y: 0, width: 640, height: 360))
+        grid.dataSource = dataSource
+        grid.setSelectedRows(IndexSet([1, 3, 8]))
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("virgule-tests-\(UUID().uuidString)"))
+
+        #expect(grid.selectedRows == IndexSet([1, 3]))
+        #expect(grid.copySelection(to: pasteboard))
+        #expect(pasteboard.string(forType: .string) == "1,0\t1,1\t1,2\n3,0\t3,1\t3,2")
+    }
+
     @Test func sqlEditorHighlightsKeywordsAndComments() {
         let sql = "SELECT COUNT(*) FROM csv -- all rows"
         let highlighted = SQLQueryBar.highlightedText(for: sql)

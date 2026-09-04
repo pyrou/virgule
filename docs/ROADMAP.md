@@ -94,8 +94,9 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Visually distinguish the toolbar search field and launch the toolbar in icon-only mode.
 - [x] Add single/multi-column sorting with Shift-click.
 - [ ] Add text, empty/non-empty, numeric, and date filters.
-- [ ] Add cell, range, row, column, and Command multi-selection.
-- [ ] Copy the selection as TSV with Command-C.
+- [x] Add row selection from the row-number gutter, including Command multi-selection.
+- [ ] Add cell, range, and column selection.
+- [x] Copy selected rows as TSV with Command-C.
 - [ ] Add local colored row annotations.
 - [ ] Add a file, bookmark, and schema sidebar.
 - [ ] Add an optional inspector (type, nulls, distinct values).

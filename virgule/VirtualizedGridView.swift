@@ -51,7 +51,7 @@ extension VirtualizedGridDataSource {
 /// A scrollable AppKit grid which creates row and cell views only for the
 /// current viewport. Its header stays above the scrolling document while
 /// virtualizing its visible column labels independently of row cells.
-final class VirtualizedGridView: NSView {
+final class VirtualizedGridView: NSView, NSMenuItemValidation {
     weak var dataSource: VirtualizedGridDataSource? {
         didSet { reloadData() }
     }
@@ -72,6 +72,11 @@ final class VirtualizedGridView: NSView {
     /// viewport, rather than by the number of rows in the result.
     var visibleRowViewCount: Int { documentView.visibleRowViewCount }
     var visibleCellViewCount: Int { documentView.visibleCellViewCount }
+    /// Model row indexes selected from the row-number gutter. This is kept in
+    /// the grid (rather than in recycled views) so selection survives scrolls.
+    private(set) var selectedRows = IndexSet()
+
+    override var acceptsFirstResponder: Bool { true }
 
     override var isFlipped: Bool { true }
 
@@ -118,6 +123,9 @@ final class VirtualizedGridView: NSView {
         rowNumberClipView.drawsBackground = false
         rowNumberClipView.documentView = rowNumberDocumentView
         rowNumberDocumentView.grid = self
+        rowNumberDocumentView.selectRow = { [weak self] row, extendsSelection in
+            self?.selectRow(row, extendsSelection: extendsSelection)
+        }
 
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
@@ -184,7 +192,42 @@ final class VirtualizedGridView: NSView {
     /// Re-reads row and column counts, discarding active views that no longer
     /// have a corresponding model row. Call after changing a query result.
     func reloadData() {
+        let rowCount = max(0, dataSource?.numberOfRows(in: self) ?? 0)
+        selectedRows = selectedRows.intersection(IndexSet(integersIn: 0..<rowCount))
         updateDocumentMetrics()
+    }
+
+    /// Programmatic counterpart to row-number clicks, also useful for tests.
+    func setSelectedRows(_ rows: IndexSet) {
+        let rowCount = max(0, dataSource?.numberOfRows(in: self) ?? 0)
+        selectedRows = rows.intersection(IndexSet(integersIn: 0..<rowCount))
+        refreshVisibleViews()
+    }
+
+    /// Copies full selected rows as TSV. The values are deliberately read from
+    /// the data source at copy time so virtualized cell views never define the
+    /// selection's contents.
+    @discardableResult
+    func copySelection(to pasteboard: NSPasteboard = .general) -> Bool {
+        guard !selectedRows.isEmpty else { return false }
+        let columns = max(0, dataSource?.numberOfColumns(in: self) ?? 0)
+        guard columns > 0 else { return false }
+        let rows = selectedRows.map { row in
+            (0..<columns).map { value(forRow: row, column: $0) }.joined(separator: "\t")
+        }
+        pasteboard.clearContents()
+        return pasteboard.setString(rows.joined(separator: "\n"), forType: .string)
+    }
+
+    @objc func copy(_ sender: Any?) {
+        _ = copySelection()
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(copy(_:)) {
+            return !selectedRows.isEmpty
+        }
+        return true
     }
 
     /// Restores widths using result-column titles, so a SQL query may reorder
@@ -225,6 +268,25 @@ final class VirtualizedGridView: NSView {
 
     fileprivate func sortDirection(forColumn column: Int) -> GridSortDirection? {
         dataSource?.grid(self, sortDirectionForColumn: column)
+    }
+
+    fileprivate func isRowSelected(_ row: Int) -> Bool {
+        selectedRows.contains(row)
+    }
+
+    private func selectRow(_ row: Int, extendsSelection: Bool) {
+        guard row >= 0, row < (dataSource?.numberOfRows(in: self) ?? 0) else { return }
+        if extendsSelection {
+            if selectedRows.contains(row) {
+                selectedRows.remove(row)
+            } else {
+                selectedRows.insert(row)
+            }
+        } else {
+            selectedRows = IndexSet(integer: row)
+        }
+        window?.makeFirstResponder(self)
+        refreshVisibleViews()
     }
 
     private func refreshVisibleViews() {
@@ -405,6 +467,7 @@ private final class VirtualizedGridDocumentView: NSView {
                 row: row,
                 columns: visibleColumns,
                 columnLayout: columnLayout,
+                isSelected: grid?.isRowSelected(row) ?? false,
                 value: { [weak self] row, column in
                     self?.grid?.value(forRow: row, column: column) ?? ""
                 }
@@ -439,6 +502,7 @@ private final class VirtualizedGridRowNumberDocumentView: NSView {
     weak var grid: VirtualizedGridView? {
         didSet { refreshVisibleViews() }
     }
+    var selectRow: ((Int, Bool) -> Void)?
 
     override var isFlipped: Bool { true }
 
@@ -479,6 +543,9 @@ private final class VirtualizedGridRowNumberDocumentView: NSView {
                 height: Self.rowHeight
             )
             label.stringValue = String(grid?.rowNumber(forRow: row) ?? (row + 1))
+            label.row = row
+            label.isSelected = grid?.isRowSelected(row) ?? false
+            label.selectRow = selectRow
         }
     }
 
@@ -521,6 +588,11 @@ private final class VirtualizedGridRowNumberView: NSView {
         get { label.stringValue }
         set { label.stringValue = newValue }
     }
+    var row = 0
+    var isSelected = false {
+        didSet { updateSelectionAppearance() }
+    }
+    var selectRow: ((Int, Bool) -> Void)?
 
     init() {
         super.init(frame: .zero)
@@ -537,10 +609,20 @@ private final class VirtualizedGridRowNumberView: NSView {
         wantsLayer = true
         layer?.borderWidth = 0.5
         layer?.borderColor = NSColor.separatorColor.cgColor
+        updateSelectionAppearance()
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        selectRow?(row, event.modifierFlags.contains(.command))
+    }
+
+    private func updateSelectionAppearance() {
+        layer?.backgroundColor = (isSelected ? NSColor.selectedContentBackgroundColor : .clear).cgColor
+        label.textColor = isSelected ? .selectedTextColor : .secondaryLabelColor
     }
 }
 
@@ -702,6 +784,11 @@ private final class VirtualizedGridRowView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard let row = rowIndex else { return }
+        if isSelected {
+            NSColor.selectedContentBackgroundColor.setFill()
+            NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 2), xRadius: 6, yRadius: 6).fill()
+            return
+        }
         guard row.isMultiple(of: 2) else { return }
         FinderGridPalette.alternateRow.setFill()
         NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 2), xRadius: 6, yRadius: 6).fill()
@@ -709,14 +796,17 @@ private final class VirtualizedGridRowView: NSView {
 
     var visibleCellViewCount: Int { activeCells.count }
     private var rowIndex: Int?
+    private var isSelected = false
 
     func configure(
         row: Int,
         columns: Range<Int>,
         columnLayout: VirtualizedGridColumnLayout?,
+        isSelected: Bool,
         value: (Int, Int) -> String
     ) {
         rowIndex = row
+        self.isSelected = isSelected
         needsDisplay = true
         let requiredColumns = Set(columns)
         let columnsToRecycle = activeCells.keys.filter { !requiredColumns.contains($0) }
@@ -746,6 +836,7 @@ private final class VirtualizedGridRowView: NSView {
                 height: bounds.height
             )
             cell.stringValue = value(row, column)
+            cell.isSelected = isSelected
         }
     }
 
@@ -764,6 +855,9 @@ private final class VirtualizedGridCellView: NSView {
     var stringValue: String {
         get { label.stringValue }
         set { label.stringValue = newValue }
+    }
+    var isSelected = false {
+        didSet { label.textColor = isSelected ? .selectedTextColor : .labelColor }
     }
 
     init() {
