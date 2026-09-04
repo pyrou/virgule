@@ -196,6 +196,9 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         previewRows = []
         cachePath = nil
         sourceFileURL = url
+        // Associate the window with the source document so AppKit supplies the
+        // native filename title, proxy icon, and file-location menu.
+        view.window?.representedURL = url
         updateDatasetToolbarItemVisibility()
         sourceRowCount = 0
         importedRowCount = 0
