@@ -21,6 +21,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private var columnCount = 0
     private var columnTitles: [String] = []
     private var activeQuerySQL: String?
+    private var pendingQuerySQL: String?
     private var baseQuerySQL = ""
     private var baseQueryReadsCSV = false
     private var sortDescriptors: [SortDescriptor] = []
@@ -57,6 +58,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         gridView.dataSource = self
         gridView.isHidden = true
         queryBar.isHidden = true
+        searchBar.isHidden = true
         queryBar.toolTip = "The SQL for the current read-only CSV view."
         queryBar.onExecute = { [weak self] sql in self?.executeQuery(sql) }
         queryBar.onSQLChanged = { [weak self] sql in self?.validateQueryWhileTyping(sql) }
@@ -92,7 +94,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
             queryBar.topAnchor.constraint(equalTo: dropView.safeAreaLayoutGuide.topAnchor, constant: 12),
             queryBar.leadingAnchor.constraint(equalTo: dropView.leadingAnchor, constant: 16),
             queryBar.trailingAnchor.constraint(equalTo: dropView.trailingAnchor, constant: -16),
-            queryBar.heightAnchor.constraint(equalToConstant: 98),
+            queryBar.heightAnchor.constraint(equalToConstant: 122),
             searchBar.topAnchor.constraint(equalTo: queryBar.bottomAnchor, constant: 8),
             searchBar.leadingAnchor.constraint(equalTo: dropView.leadingAnchor, constant: 16),
             searchBar.trailingAnchor.constraint(equalTo: dropView.trailingAnchor, constant: -16),
@@ -149,6 +151,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         columnTitles = []
         queryBar.completionColumns = []
         activeQuerySQL = nil
+        pendingQuerySQL = nil
         baseQuerySQL = ""
         baseQueryReadsCSV = false
         sortDescriptors = []
@@ -354,7 +357,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         guard let cachePath, let importID = currentImportID else { return }
         let viewID = UUID()
         currentViewID = viewID
-        activeQuerySQL = sql
+        pendingQuerySQL = sql
         if let baseQuery {
             baseQuerySQL = baseQuery
         } else {
@@ -367,10 +370,9 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         if let sorting {
             sortDescriptors = sorting
         }
-        cachedRows = [:]
-        loadingPageOffsets = []
-        columnTitles = []
-        importedRowCount = 0
+        // Keep the current result on screen while SQLite validates the next
+        // query. Clearing the schema here briefly exposed fallback headers
+        // ("Column 1", "Column 2", …) during sorts.
         detailLabel.stringValue = "Validating query…"
         gridView.reloadData()
         let context = Unmanaged.passRetained(QueryContext(controller: self, importID: importID, viewID: viewID))
@@ -388,12 +390,16 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         DispatchQueue.main.async { [weak self] in
             guard let self, self.currentImportID == importID, self.currentViewID == viewID else { return }
             guard event.kind == VIRGULE_IMPORT_HEADERS.rawValue else {
-                self.activeQuerySQL = nil
+                self.pendingQuerySQL = nil
                 self.detailLabel.stringValue = "Query error: \(event.message)"
                 self.queryBar.setValidationMessage(event.message)
                 return
             }
             self.queryBar.setValidationMessage(nil)
+            self.activeQuerySQL = self.pendingQuerySQL
+            self.pendingQuerySQL = nil
+            self.cachedRows = [:]
+            self.loadingPageOffsets = []
             self.columnTitles = event.values
             self.searchBar.setColumns(event.values)
             self.columnCount = event.values.count

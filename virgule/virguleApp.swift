@@ -15,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         window.title = "Virgule"
         window.isRestorable = false
+        window.contentMinSize = NSSize(width: 640, height: 480)
+        window.contentMaxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         window.styleMask.insert(.fullSizeContentView)
         window.titlebarAppearsTransparent = true
         window.contentViewController = controller

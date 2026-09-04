@@ -63,6 +63,7 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
+        scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 4, right: 0)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
 
         textView.drawsBackground = false
@@ -108,19 +109,31 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         actions.spacing = 2
         actions.translatesAutoresizingMaskIntoConstraints = false
 
+        let footer = NSStackView(views: [validationLabel, NSView(), actions])
+        footer.orientation = .horizontal
+        footer.alignment = .centerY
+        footer.spacing = 6
+        footer.translatesAutoresizingMaskIntoConstraints = false
+
+        let footerSeparator = NSBox()
+        footerSeparator.boxType = .separator
+        footerSeparator.translatesAutoresizingMaskIntoConstraints = false
+
         addSubview(scrollView)
-        addSubview(actions)
-        addSubview(validationLabel)
+        addSubview(footerSeparator)
+        addSubview(footer)
         NSLayoutConstraint.activate([
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: actions.leadingAnchor, constant: -4),
+            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
             scrollView.topAnchor.constraint(equalTo: topAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: validationLabel.topAnchor, constant: -2),
-            actions.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            actions.bottomAnchor.constraint(equalTo: validationLabel.topAnchor, constant: -2),
-            validationLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
-            validationLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
-            validationLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -5),
+            scrollView.bottomAnchor.constraint(equalTo: footer.topAnchor, constant: -2),
+            footer.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+            footer.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            footer.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -5),
+            footer.heightAnchor.constraint(equalToConstant: 24),
+            footerSeparator.leadingAnchor.constraint(equalTo: leadingAnchor),
+            footerSeparator.trailingAnchor.constraint(equalTo: trailingAnchor),
+            footerSeparator.bottomAnchor.constraint(equalTo: footer.topAnchor, constant: -1),
         ])
         highlightSyntax()
         updateEditingControls()

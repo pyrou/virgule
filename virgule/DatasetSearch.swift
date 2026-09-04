@@ -58,6 +58,8 @@ final class DatasetSearchBar: NSView {
         columnPopup.action = #selector(searchChanged(_:))
         regexButton.target = self
         regexButton.action = #selector(searchChanged(_:))
+        regexButton.setContentHuggingPriority(.required, for: .horizontal)
+        regexButton.setContentCompressionResistancePriority(.required, for: .horizontal)
         regexButton.toolTip = "Interpret the search text as a regular expression"
 
         messageLabel.textColor = .systemRed
@@ -75,9 +77,11 @@ final class DatasetSearchBar: NSView {
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
             stack.topAnchor.constraint(equalTo: topAnchor),
             stack.bottomAnchor.constraint(equalTo: bottomAnchor),
-            searchField.widthAnchor.constraint(equalToConstant: 230),
-            columnPopup.widthAnchor.constraint(equalToConstant: 150),
+            searchField.widthAnchor.constraint(greaterThanOrEqualToConstant: 180),
+            columnPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 150),
         ])
+        searchField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        columnPopup.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         setColumns([])
     }
 
