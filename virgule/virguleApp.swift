@@ -1,12 +1,14 @@
 import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var window: NSWindow?
-    private var contentController: ContentViewController?
+    private var windows: [NSWindow] = []
+    private var contentControllers: [ContentViewController] = []
 
     func showInitialWindow() {
-        guard window == nil else { return }
+        showWindow()
+    }
 
+    func showWindow(opening url: URL? = nil) {
         let controller = ContentViewController()
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 960, height: 640),
@@ -37,8 +39,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ))
         }
         NSApp.activate(ignoringOtherApps: true)
-        self.window = window
-        self.contentController = controller
+        windows.append(window)
+        contentControllers.append(controller)
+        if let url {
+            controller.openSourceFile(url)
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -51,11 +56,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openDocument(_ sender: Any?) {
-        contentController?.openCSV(sender)
+        showWindow()
+        windows.last?.contentViewController?.perform(#selector(ContentViewController.openCSV(_:)), with: sender)
+    }
+
+    @objc private func newWindow(_ sender: Any?) {
+        showWindow()
     }
 
     @objc private func focusDatasetSearch(_ sender: Any?) {
-        contentController?.focusDatasetSearch(sender)
+        (NSApp.keyWindow?.contentViewController as? ContentViewController)?.focusDatasetSearch(sender)
     }
 
     /// Apps that construct `NSApplication` themselves do not receive a menu
@@ -75,6 +85,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let fileMenu = NSMenu(title: "File")
         fileMenu.addItem(withTitle: "Open…", action: #selector(openDocument(_:)), keyEquivalent: "o")
+        let newWindowItem = fileMenu.addItem(withTitle: "New Window", action: #selector(newWindow(_:)), keyEquivalent: "n")
+        newWindowItem.keyEquivalentModifierMask = [.command, .shift]
         let saveAsItem = fileMenu.addItem(withTitle: "Save As…", action: #selector(ContentViewController.exportViewAsCSV(_:)), keyEquivalent: "s")
         saveAsItem.keyEquivalentModifierMask = [.command, .shift]
         fileMenu.addItem(.separator())

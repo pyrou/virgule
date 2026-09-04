@@ -89,7 +89,9 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         mainSplitView.addArrangedSubview(contentSplitView)
         mainSplitView.isHidden = true
         sidebar.onOpenFile = { [weak self] in self?.openCSV(nil) }
-        sidebar.onSelectRecentFile = { [weak self] url in self?.selectSourceFile(url) }
+        sidebar.onSelectRecentFile = { url in
+            (NSApp.delegate as? AppDelegate)?.showWindow(opening: url)
+        }
         sidebar.onSelectBookmark = { [weak self] bookmark in
             guard let self else { return }
             self.queryBar.sql = bookmark.sql
@@ -187,6 +189,10 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     }
 
     @objc func openCSV(_ sender: Any?) {
+        if sourceFileURL != nil {
+            (NSApp.delegate as? AppDelegate)?.showWindow()
+            return
+        }
         let panel = NSOpenPanel()
         panel.title = "Open CSV file"
         panel.prompt = "Open"
@@ -198,6 +204,10 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         if panel.runModal() == .OK, let url = panel.url {
             selectSourceFile(url)
         }
+    }
+
+    func openSourceFile(_ url: URL) {
+        selectSourceFile(url)
     }
 
     private func selectSourceFile(_ url: URL) {
