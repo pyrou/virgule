@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
 
-use crate::{import_source_file, CsvCache, ImportError, ImportEvent, VirguleEngine};
+use crate::{import_source_file, open_query_cache, CsvCache, ImportError, ImportEvent, VirguleEngine};
 
 /// C-compatible import event. All string pointers are valid only for the callback.
 #[repr(C)]
@@ -336,7 +336,7 @@ pub unsafe extern "C" fn virgule_engine_describe_query(
         );
         return 0;
     };
-    let connection = match Connection::open(&cache_path) {
+    let connection = match open_query_cache(&cache_path) {
         Ok(value) => value,
         Err(error) => {
             emit_ffi_error(
@@ -395,7 +395,7 @@ pub unsafe extern "C" fn virgule_engine_validate_query(
         );
         return 0;
     };
-    let connection = match Connection::open(&cache_path) {
+    let connection = match open_query_cache(&cache_path) {
         Ok(value) => value,
         Err(error) => {
             emit_ffi_error(
@@ -441,7 +441,7 @@ pub unsafe extern "C" fn virgule_engine_read_query_page(
         emit_ffi_page_error(callback, context, "Invalid query arguments.");
         return 0;
     };
-    let connection = match Connection::open(&cache_path) {
+    let connection = match open_query_cache(&cache_path) {
         Ok(value) => value,
         Err(error) => {
             emit_ffi_page_error(callback, context, error);

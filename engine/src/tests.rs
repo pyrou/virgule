@@ -87,6 +87,36 @@ fn import_reports_unique_column_labels_for_duplicate_csv_headers() {
 }
 
 #[test]
+fn query_cache_supports_regular_expression_search() {
+    let directory = std::env::temp_dir().join(format!("virgule-engine-regexp-{}", std::process::id()));
+    fs::create_dir_all(&directory).expect("creates fixture directory");
+    let source = directory.join("people.csv");
+    fs::write(&source, b"name,city\nAda,Paris\nLin,Tokyo\n").expect("writes CSV fixture");
+    let cache_directory = directory.join("cache");
+    import_source_file(&source, &cache_directory, |_| {}).expect("imports fixture");
+    let cache_path = cache_path_for(&source, &cache_directory);
+    let connection = open_query_cache(&cache_path).expect("opens query cache");
+
+    let matches: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM csv WHERE virgule_regexp('^A', column_1)",
+            [],
+            |row| row.get(0),
+        )
+        .expect("runs regular expression search");
+    assert_eq!(matches, 1);
+    let invalid_pattern: i64 = connection
+        .query_row("SELECT virgule_regexp('[', 'Ada')", [], |row| row.get(0))
+        .expect("handles invalid regular expression");
+    assert_eq!(invalid_pattern, 0);
+
+    fs::remove_file(cache_path).expect("removes cache fixture");
+    fs::remove_dir(cache_directory).expect("removes cache directory");
+    fs::remove_file(source).expect("removes CSV fixture");
+    fs::remove_dir(directory).expect("removes fixture directory");
+}
+
+#[test]
 fn detects_each_supported_delimiter() {
     for (input, expected) in [
         ("name,city\nAda,Paris\nLin,Tokyo", Delimiter::Comma),

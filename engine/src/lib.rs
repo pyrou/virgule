@@ -7,8 +7,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
+use rusqlite::functions::FunctionFlags;
 use rusqlite::types::ValueRef;
 use rusqlite::Connection;
+use regex::Regex;
 
 /// Opaque state: its layout is intentionally private to Rust.
 pub struct VirguleEngine {
@@ -28,6 +30,26 @@ pub use importer::{import_source_file, ImportEvent};
 pub struct CsvCache {
     pub(crate) connection: Connection,
     pub(crate) path: PathBuf,
+}
+
+/// Opens an existing cache with the scalar functions used by interactive
+/// views. Importing intentionally uses its own plain connection because it
+/// does not execute user-facing queries.
+pub(crate) fn open_query_cache(path: impl AsRef<Path>) -> rusqlite::Result<Connection> {
+    let connection = Connection::open(path)?;
+    connection.create_scalar_function(
+        "virgule_regexp",
+        2,
+        FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC,
+        |context| {
+            let pattern: String = context.get(0)?;
+            let value: String = context.get(1)?;
+            Ok(Regex::new(&pattern)
+                .map(|expression| expression.is_match(&value))
+                .unwrap_or(false))
+        },
+    )?;
+    Ok(connection)
 }
 
 /// One row of a result page. `source_row` remains stable while the cache exists.

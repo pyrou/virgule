@@ -88,7 +88,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 
 ## 7. Data interactions
 
-- [ ] Add Command-F search (whole dataset or a column; text/regex).
+- [x] Add Command-F search (whole dataset or a column; text/regex).
 - [x] Add single/multi-column sorting with Shift-click.
 - [ ] Add text, empty/non-empty, numeric, and date filters.
 - [ ] Add cell, range, row, column, and Command multi-selection.

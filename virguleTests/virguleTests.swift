@@ -12,6 +12,25 @@ import Testing
 @MainActor
 struct virguleTests {
 
+    @Test func datasetSearchBuildsTextSearchAcrossEveryColumn() {
+        let sql = DatasetSearch.filteredSQL(
+            baseSQL: "SELECT name, city FROM csv",
+            columns: ["name", "city"],
+            search: DatasetSearch(text: "O'Brien", column: nil, usesRegularExpression: false)
+        )
+
+        #expect(sql.contains("instr(lower(CAST(\"name\" AS TEXT)), lower('O''Brien')) > 0"))
+        #expect(sql.contains("instr(lower(CAST(\"city\" AS TEXT)), lower('O''Brien')) > 0"))
+    }
+
+    @Test func datasetSearchBuildsRegexForOneColumnAndClearsWithoutChangingQuery() {
+        let search = DatasetSearch(text: "^Ada", column: "name", usesRegularExpression: true)
+        let sql = DatasetSearch.filteredSQL(baseSQL: "SELECT name FROM csv", columns: ["name"], search: search)
+
+        #expect(sql.contains("virgule_regexp('^Ada', CAST(\"name\" AS TEXT))"))
+        #expect(DatasetSearch.filteredSQL(baseSQL: "SELECT name FROM csv", columns: ["name"], search: nil) == "SELECT name FROM csv")
+    }
+
     @Test func gridOnlyCreatesViewsForVisibleRowsAndColumns() {
         let dataSource = GridDataSource(rows: 1_000, columns: 100)
         let grid = VirtualizedGridView(frame: NSRect(x: 0, y: 0, width: 640, height: 360))

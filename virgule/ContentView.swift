@@ -7,6 +7,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private let detailLabel = NSTextField(wrappingLabelWithString: "Choose a CSV file or drag one into this window.")
     private let gridView = VirtualizedGridView()
     private let queryBar = SQLQueryBar()
+    private let searchBar = DatasetSearchBar()
     private let openButton = NSButton(title: "Open CSV…", target: nil, action: nil)
     private let controls = NSStackView()
     private var emptyStateConstraints: [NSLayoutConstraint] = []
@@ -23,6 +24,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private var baseQuerySQL = ""
     private var baseQueryReadsCSV = false
     private var sortDescriptors: [SortDescriptor] = []
+    private var datasetSearch: DatasetSearch?
     private var currentViewID = UUID()
     private var currentValidationID = UUID()
     private var scheduledValidation: DispatchWorkItem?
@@ -58,6 +60,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         queryBar.toolTip = "The SQL for the current read-only CSV view."
         queryBar.onExecute = { [weak self] sql in self?.executeQuery(sql) }
         queryBar.onSQLChanged = { [weak self] sql in self?.validateQueryWhileTyping(sql) }
+        searchBar.onSearchChanged = { [weak self] search in self?.applyDatasetSearch(search) }
 
         openButton.bezelStyle = .rounded
         openButton.target = self
@@ -73,10 +76,12 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         dropView.addSubview(windowHeaderMaterial)
         dropView.addSubview(controls)
         dropView.addSubview(queryBar)
+        dropView.addSubview(searchBar)
         dropView.addSubview(gridView)
         windowHeaderMaterial.translatesAutoresizingMaskIntoConstraints = false
         controls.translatesAutoresizingMaskIntoConstraints = false
         queryBar.translatesAutoresizingMaskIntoConstraints = false
+        searchBar.translatesAutoresizingMaskIntoConstraints = false
         gridView.translatesAutoresizingMaskIntoConstraints = false
 
         emptyStateConstraints = [
@@ -88,7 +93,11 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
             queryBar.leadingAnchor.constraint(equalTo: dropView.leadingAnchor, constant: 16),
             queryBar.trailingAnchor.constraint(equalTo: dropView.trailingAnchor, constant: -16),
             queryBar.heightAnchor.constraint(equalToConstant: 98),
-            gridView.topAnchor.constraint(equalTo: queryBar.bottomAnchor, constant: 12),
+            searchBar.topAnchor.constraint(equalTo: queryBar.bottomAnchor, constant: 8),
+            searchBar.leadingAnchor.constraint(equalTo: dropView.leadingAnchor, constant: 16),
+            searchBar.trailingAnchor.constraint(equalTo: dropView.trailingAnchor, constant: -16),
+            searchBar.heightAnchor.constraint(equalToConstant: 26),
+            gridView.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 8),
             gridView.leadingAnchor.constraint(equalTo: dropView.leadingAnchor),
             gridView.trailingAnchor.constraint(equalTo: dropView.trailingAnchor),
             gridView.bottomAnchor.constraint(equalTo: dropView.bottomAnchor),
@@ -143,6 +152,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         baseQuerySQL = ""
         baseQueryReadsCSV = false
         sortDescriptors = []
+        datasetSearch = nil
+        searchBar.clear()
         currentViewID = UUID()
         currentValidationID = UUID()
         scheduledValidation?.cancel()
@@ -185,6 +196,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
             case VIRGULE_IMPORT_HEADERS.rawValue:
                 self.columnTitles = event.values
                 self.queryBar.completionColumns = event.values
+                self.searchBar.setColumns(event.values)
                 self.baseQuerySQL = Self.sourceQuery(for: event.values)
                 self.baseQueryReadsCSV = true
                 self.queryBar.sql = self.renderedQuerySQL()
@@ -332,6 +344,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private func setGridVisible(_ isVisible: Bool) {
         gridView.isHidden = !isVisible
         queryBar.isHidden = !isVisible
+        searchBar.isHidden = !isVisible
         controls.isHidden = isVisible
         NSLayoutConstraint.deactivate(isVisible ? emptyStateConstraints : previewStateConstraints)
         NSLayoutConstraint.activate(isVisible ? previewStateConstraints : emptyStateConstraints)
@@ -345,6 +358,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         if let baseQuery {
             baseQuerySQL = baseQuery
         } else {
+            datasetSearch = nil
+            searchBar.clear()
             baseQuerySQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
             baseQueryReadsCSV = false
             sortDescriptors = []
@@ -380,6 +395,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
             }
             self.queryBar.setValidationMessage(nil)
             self.columnTitles = event.values
+            self.searchBar.setColumns(event.values)
             self.columnCount = event.values.count
             self.importedRowCount = event.importedRows
             self.detailLabel.stringValue = "\(event.importedRows) matching rows"
@@ -462,14 +478,15 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     }
 
     private func renderedQuerySQL() -> String {
-        let base = baseQuerySQL.isEmpty ? Self.sourceQuery(for: columnTitles) : baseQuerySQL
+        let unfilteredBase = baseQuerySQL.isEmpty ? Self.sourceQuery(for: columnTitles) : baseQuerySQL
+        let base = DatasetSearch.filteredSQL(baseSQL: unfilteredBase, columns: columnTitles, search: datasetSearch)
         let ordering = sortDescriptors.compactMap { descriptor -> String? in
             guard columnTitles.indices.contains(descriptor.column) else { return nil }
             let direction = descriptor.direction == .ascending ? "ASC" : "DESC"
             return "\(Self.quoteIdentifier(columnTitles[descriptor.column])) \(direction)"
         }
         guard !ordering.isEmpty else {
-            return base + "\nORDER BY \"__virgule_row_id\""
+            return baseQueryReadsCSV ? base + "\nORDER BY \"__virgule_row_id\"" : base
         }
         if baseQueryReadsCSV {
             return base + "\nORDER BY " + ordering.joined(separator: ", ") + ", \"__virgule_row_id\""
@@ -479,8 +496,24 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     }
 
     nonisolated private static func sourceQuery(for columns: [String]) -> String {
-        let selectedColumns = columns.map(quoteIdentifier).joined(separator: ", ")
+        let selectedColumns = ([quoteIdentifier("__virgule_row_id")] + columns.map(quoteIdentifier)).joined(separator: ", ")
         return "SELECT \(selectedColumns)\nFROM csv"
+    }
+
+    private func applyDatasetSearch(_ search: DatasetSearch?) {
+        guard cachePath != nil, datasetSearch != search else { return }
+        datasetSearch = search
+        executeQuery(renderedQuerySQL(), baseQuery: baseQuerySQL, sorting: sortDescriptors)
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+           event.charactersIgnoringModifiers?.lowercased() == "f",
+           cachePath != nil {
+            searchBar.focusSearchField()
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
     }
 
     nonisolated private static func quoteIdentifier(_ identifier: String) -> String {
