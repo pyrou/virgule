@@ -1,8 +1,17 @@
 import AppKit
 
-struct SidebarBookmark: Equatable {
+struct SidebarBookmark: Codable, Equatable {
     let name: String
     let sql: String
+    let sourcePath: String
+    let createdAt: Date
+
+    init(name: String, sql: String, sourcePath: String = "", createdAt: Date = Date()) {
+        self.name = name
+        self.sql = sql
+        self.sourcePath = sourcePath
+        self.createdAt = createdAt
+    }
 }
 
 final class SidebarView: NSView {
@@ -16,6 +25,7 @@ final class SidebarView: NSView {
     private let bookmarkStack = NSStackView()
     private var bookmarks: [SidebarBookmark] = []
     private var recentFiles: [URL] = []
+    private var currentSourcePath = ""
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -30,6 +40,15 @@ final class SidebarView: NSView {
     func update(sourceURL: URL?) {
         fileValue.stringValue = sourceURL?.lastPathComponent ?? "No CSV open"
         fileValue.toolTip = sourceURL?.path
+        currentSourcePath = sourceURL?.path ?? ""
+        if !currentSourcePath.isEmpty {
+            let stored = UserDefaults.standard.data(forKey: "virgule.sidebar.bookmarks")
+                .flatMap { try? JSONDecoder().decode([SidebarBookmark].self, from: $0) } ?? []
+            bookmarks = stored.filter { $0.sourcePath == currentSourcePath }
+        } else {
+            bookmarks = []
+        }
+        rebuildBookmarkButtons()
         if let sourceURL {
             recentFiles.removeAll { $0 == sourceURL }
             recentFiles.insert(sourceURL, at: 0)
@@ -50,21 +69,43 @@ final class SidebarView: NSView {
 
     func clearBookmarks() {
         bookmarks.removeAll()
-        bookmarkStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        rebuildBookmarkButtons()
     }
 
     func addBookmark(_ bookmark: SidebarBookmark) {
         guard !bookmarks.contains(bookmark) else { return }
-        bookmarks.append(bookmark)
-        let button = NSButton(title: bookmark.name, target: self, action: #selector(bookmarkClicked(_:)))
-        button.tag = bookmarks.count - 1
-        button.bezelStyle = .recessed
-        button.alignment = .left
-        button.image = NSImage(systemSymbolName: "bookmark", accessibilityDescription: "Bookmark")
-        button.imagePosition = .imageLeading
-        button.toolTip = bookmark.sql
-        bookmarkStack.addArrangedSubview(button)
+        let saved = SidebarBookmark(name: bookmark.name, sql: bookmark.sql, sourcePath: currentSourcePath)
+        bookmarks.append(saved)
+        var all = UserDefaults.standard.data(forKey: "virgule.sidebar.bookmarks")
+            .flatMap { try? JSONDecoder().decode([SidebarBookmark].self, from: $0) } ?? []
+        all.removeAll { $0.sourcePath == saved.sourcePath && $0.name == saved.name }
+        all.append(saved)
+        if let data = try? JSONEncoder().encode(all) {
+            UserDefaults.standard.set(data, forKey: "virgule.sidebar.bookmarks")
+        }
+        rebuildBookmarkButtons()
     }
+
+    private func rebuildBookmarkButtons() {
+        bookmarkStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        for (index, bookmark) in bookmarks.enumerated() {
+            let button = NSButton(title: bookmark.name, target: self, action: #selector(bookmarkClicked(_:)))
+            button.tag = index
+            button.bezelStyle = .recessed
+            button.alignment = .left
+            button.image = NSImage(systemSymbolName: "bookmark", accessibilityDescription: "Bookmark")
+            button.imagePosition = .imageLeading
+            button.toolTip = "(bookmark.sql)\nBookmarked (Self.dateFormatter.string(from: bookmark.createdAt))"
+            bookmarkStack.addArrangedSubview(button)
+        }
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
 
     private func buildView() {
         wantsLayer = true

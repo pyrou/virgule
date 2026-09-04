@@ -529,10 +529,18 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     private func addCurrentBookmark() {
         guard let sourceFileURL,
               !queryBar.sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        sidebar.addBookmark(SidebarBookmark(
-            name: sourceFileURL.deletingPathExtension().lastPathComponent,
-            sql: queryBar.sql
-        ))
+        let alert = NSAlert()
+        alert.messageText = "Bookmark SQL view"
+        alert.informativeText = "Give this query a name."
+        let field = NSTextField(string: sourceFileURL.deletingPathExtension().lastPathComponent)
+        field.frame = NSRect(x: 0, y: 0, width: 280, height: 24)
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Bookmark")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        sidebar.addBookmark(SidebarBookmark(name: name, sql: queryBar.sql, sourcePath: sourceFileURL.path))
     }
 
     private func updateTableFooter() {
