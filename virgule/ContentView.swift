@@ -299,6 +299,10 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         cachePath == nil ? previewRows.count : importedRowCount
     }
 
+    func maximumRowNumber(in grid: VirtualizedGridView) -> Int {
+        max(sourceRowCount, importedRowCount, numberOfRows(in: grid))
+    }
+
     func numberOfColumns(in grid: VirtualizedGridView) -> Int {
         Self.displayedColumnCount(
             cachePathIsAvailable: cachePath != nil,

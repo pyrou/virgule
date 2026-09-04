@@ -105,6 +105,15 @@ struct virguleTests {
         #expect(elapsed < .seconds(1))
     }
 
+    @Test func gridSizesRowNumberGutterForTheLargestRowNumber() {
+        let dataSource = GridDataSource(rows: 1_000_000, columns: 1)
+        let grid = VirtualizedGridView(frame: NSRect(x: 0, y: 0, width: 640, height: 360))
+        grid.dataSource = dataSource
+        grid.layoutSubtreeIfNeeded()
+
+        #expect(grid.rowNumberColumnWidth > 52)
+    }
+
     @Test func gridCopiesMultipleSelectedRowsAsTSV() {
         let dataSource = GridDataSource(rows: 4, columns: 3)
         let grid = VirtualizedGridView(frame: NSRect(x: 0, y: 0, width: 640, height: 360))

@@ -68,6 +68,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Keep the header pinned.
 - [x] Keep row numbers stable.
 - [x] Make columns resizable.
+- [x] Resize the row-number gutter once the total row count is known.
 - [x] Auto-size new SQL result columns from the first 15 rows and persist widths by column name.
 - [x] Load SQLite pages on demand while scrolling.
 - [x] Reuse visible row/cell views.
