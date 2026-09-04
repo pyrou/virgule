@@ -12,6 +12,22 @@ import Testing
 @MainActor
 struct virguleTests {
 
+    @Test func tableFooterShowsDisplayedQueryRows() {
+        #expect(ContentViewController.tableFooterText(
+            displayedRowCount: 150,
+            sourceRowCount: 300,
+            isSearching: false
+        ) == "150 rows out of 300 rows")
+    }
+
+    @Test func tableFooterShowsSearchMatchesOutOfSourceRows() {
+        #expect(ContentViewController.tableFooterText(
+            displayedRowCount: 150,
+            sourceRowCount: 300,
+            isSearching: true
+        ) == "150 matching rows out of 300 rows")
+    }
+
     @Test func datasetSearchBuildsTextSearchAcrossEveryColumn() {
         let sql = DatasetSearch.filteredSQL(
             baseSQL: "SELECT name, city FROM csv",

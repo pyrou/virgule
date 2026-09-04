@@ -429,9 +429,29 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
             tableFooter.stringValue = ""
             return
         }
-        let rowLabel = sourceRowCount == 1 ? "1 row" : "\(sourceRowCount) rows"
-        tableFooter.stringValue = "\(rowLabel)"
+        let displayedRowCount = cachePath == nil ? previewRows.count : importedRowCount
+        tableFooter.stringValue = Self.tableFooterText(
+            displayedRowCount: displayedRowCount,
+            sourceRowCount: sourceRowCount,
+            isSearching: datasetSearch != nil
+        )
         tableFooter.toolTip = sourceFileURL.path
+    }
+
+    static func tableFooterText(
+        displayedRowCount: Int,
+        sourceRowCount: Int,
+        isSearching: Bool
+    ) -> String {
+        let displayedLabel = displayedRowCount == 1 ? "1 row" : "\(displayedRowCount) rows"
+        guard displayedRowCount != sourceRowCount else { return displayedLabel }
+
+        let sourceLabel = sourceRowCount == 1 ? "1 row" : "\(sourceRowCount) rows"
+        if isSearching {
+            let matchingLabel = displayedRowCount == 1 ? "matching row" : "matching rows"
+            return "\(displayedRowCount) \(matchingLabel) out of \(sourceLabel)"
+        }
+        return "\(displayedLabel) out of \(sourceLabel)"
     }
 
     @objc private func toggleQueryPane(_ sender: Any?) {
@@ -534,6 +554,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
             self.columnCount = event.values.count
             self.importedRowCount = event.importedRows
             self.detailLabel.stringValue = "\(event.importedRows) matching rows"
+            self.updateTableFooter()
             self.restoreSavedColumnWidths()
             self.gridView.reloadData()
         }
