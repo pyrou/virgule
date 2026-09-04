@@ -785,6 +785,16 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     }
 
     @objc func exportViewAsCSV(_ sender: Any?) {
+        // AppKit panels must be created and presented on the main thread. Menu
+        // and toolbar actions normally arrive here on main, but keeping this
+        // boundary explicit also protects the export action if it is triggered
+        // by another callback in the future.
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.exportViewAsCSV(nil)
+            }
+            return
+        }
         guard canExportCurrentView else {
             NSSound.beep()
             return
