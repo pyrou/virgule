@@ -432,7 +432,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         let title = sender.representedObject as? String ?? "Column"
         let minimum = values.min() ?? "—"
         let maximum = values.max() ?? "—"
-        detailLabel.stringValue = "\(title): min \(minimum) · max \(maximum) · average \(average) · \(values.count) loaded values"
+        let nonEmptyCount = values.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.count
+        detailLabel.stringValue = "\(title): count \(values.count) · non-empty \(nonEmptyCount) · min \(minimum) · max \(maximum) · average \(average)"
     }
 
     func grid(_ grid: VirtualizedGridView, didResizeColumn column: Int, width: CGFloat) {
