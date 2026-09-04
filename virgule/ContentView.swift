@@ -968,17 +968,30 @@ private extension NSToolbarItem.Identifier {
 /// Keeps the dataset search distinct from the unified toolbar background,
 /// including when the window is inactive or appears in dark mode.
 private final class OutlinedSearchField: NSSearchField {
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        configureOutline()
+    }
 
-        let border = NSBezierPath(
-            roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5),
-            xRadius: 7,
-            yRadius: 7
-        )
-        NSColor.separatorColor.setStroke()
-        border.lineWidth = 1
-        border.stroke()
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configureOutline()
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateOutlineColor()
+    }
+
+    private func configureOutline() {
+        wantsLayer = true
+        layer?.borderWidth = 1
+        layer?.cornerRadius = 7
+        updateOutlineColor()
+    }
+
+    private func updateOutlineColor() {
+        layer?.borderColor = NSColor.tertiaryLabelColor.cgColor
     }
 }
 
