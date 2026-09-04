@@ -163,6 +163,7 @@ final class SidebarView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate 
         let label = NSTextField(labelWithString: item.title)
         label.translatesAutoresizingMaskIntoConstraints = false
         label.lineBreakMode = .byTruncatingTail
+        cell.addSubview(label)
         if item.kind == .section {
             label.font = .systemFont(ofSize: 11, weight: .semibold)
             label.textColor = .secondaryLabelColor
@@ -183,7 +184,6 @@ final class SidebarView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate 
                 cell.toolTip = "Source: \(bookmark.sourcePath)\nBookmarked \(Self.dateFormatter.string(from: bookmark.createdAt))\n\(bookmark.sql)"
             }
         }
-        cell.addSubview(label)
         return cell
     }
 
