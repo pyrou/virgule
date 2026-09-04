@@ -10,6 +10,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     private let searchBar = DatasetSearchBar()
     private let contentSplitView = NSSplitView()
     private let gridContainer = NSView()
+    private let tableFooterContainer = NSView()
     private let tableFooter = NSTextField(labelWithString: "")
     private let openButton = NSButton(title: "Open CSV…", target: nil, action: nil)
     private let controls = NSStackView()
@@ -88,9 +89,11 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
 
         gridContainer.addSubview(gridView)
         gridContainer.addSubview(searchBar)
-        gridContainer.addSubview(tableFooter)
+        gridContainer.addSubview(tableFooterContainer)
+        tableFooterContainer.addSubview(tableFooter)
         gridView.translatesAutoresizingMaskIntoConstraints = false
         searchBar.translatesAutoresizingMaskIntoConstraints = false
+        tableFooterContainer.translatesAutoresizingMaskIntoConstraints = false
         tableFooter.translatesAutoresizingMaskIntoConstraints = false
 
         controls.addArrangedSubview(titleLabel)
@@ -131,11 +134,14 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
             detailLabel.widthAnchor.constraint(lessThanOrEqualTo: dropView.widthAnchor, constant: -80),
             gridView.leadingAnchor.constraint(equalTo: gridContainer.leadingAnchor),
             gridView.trailingAnchor.constraint(equalTo: gridContainer.trailingAnchor),
-            gridView.bottomAnchor.constraint(equalTo: tableFooter.topAnchor),
-            tableFooter.leadingAnchor.constraint(equalTo: gridContainer.leadingAnchor, constant: 12),
-            tableFooter.trailingAnchor.constraint(equalTo: gridContainer.trailingAnchor, constant: -12),
-            tableFooter.bottomAnchor.constraint(equalTo: gridContainer.bottomAnchor),
-            tableFooter.heightAnchor.constraint(equalToConstant: 24),
+            gridView.bottomAnchor.constraint(equalTo: tableFooterContainer.topAnchor),
+            tableFooterContainer.leadingAnchor.constraint(equalTo: gridContainer.leadingAnchor),
+            tableFooterContainer.trailingAnchor.constraint(equalTo: gridContainer.trailingAnchor),
+            tableFooterContainer.bottomAnchor.constraint(equalTo: gridContainer.bottomAnchor),
+            tableFooterContainer.heightAnchor.constraint(equalToConstant: 31),
+            tableFooter.leadingAnchor.constraint(equalTo: tableFooterContainer.leadingAnchor, constant: 12),
+            tableFooter.trailingAnchor.constraint(equalTo: tableFooterContainer.trailingAnchor, constant: -12),
+            tableFooter.centerYAnchor.constraint(equalTo: tableFooterContainer.centerYAnchor),
             searchBar.topAnchor.constraint(equalTo: gridContainer.topAnchor, constant: 8),
             searchBar.leadingAnchor.constraint(equalTo: gridContainer.leadingAnchor, constant: 16),
             searchBar.trailingAnchor.constraint(equalTo: gridContainer.trailingAnchor, constant: -16),
