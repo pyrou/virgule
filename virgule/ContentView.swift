@@ -1,14 +1,14 @@
 import AppKit
 import UniformTypeIdentifiers
 
-final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitViewDelegate, VirtualizedGridDataSource, NSSearchFieldDelegate {
+final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitViewDelegate, VirtualizedGridDataSource, NSSearchFieldDelegate, NSMenuItemValidation, NSToolbarItemValidation {
     private let engine = virgule_engine_create()
     private let titleLabel = NSTextField(labelWithString: "Open a CSV file to begin")
     private let detailLabel = NSTextField(wrappingLabelWithString: "Choose a CSV file or drag one into this window.")
     private let gridView = VirtualizedGridView()
     private let queryBar = SQLQueryBar()
     private let searchBar = DatasetSearchBar()
-    private let toolbarSearchField = OutlinedSearchField()
+    private let toolbarSearchField = NSSearchField()
     private let contentSplitView = NSSplitView()
     private let gridContainer = NSView()
     private let tableFooterContainer = NSView()
@@ -45,6 +45,11 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
 
     deinit {
         virgule_engine_destroy(engine)
+    }
+
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        updateDatasetToolbarItemVisibility()
     }
 
     override func loadView() {
@@ -87,7 +92,6 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         toolbarSearchField.action = #selector(toolbarSearchChanged(_:))
         toolbarSearchField.sendsSearchStringImmediately = true
         toolbarSearchField.bezelStyle = .roundedBezel
-        toolbarSearchField.frame.size = NSSize(width: 220, height: 28)
 
         openButton.bezelStyle = .rounded
         openButton.target = self
@@ -192,6 +196,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         previewRows = []
         cachePath = nil
         sourceFileURL = url
+        updateDatasetToolbarItemVisibility()
         sourceRowCount = 0
         importedRowCount = 0
         cachedRows = [:]
@@ -291,7 +296,12 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     }
 
     func numberOfColumns(in grid: VirtualizedGridView) -> Int {
-        max(columnTitles.count, columnCount, previewRows.map { $0.count }.max() ?? 0)
+        Self.displayedColumnCount(
+            cachePathIsAvailable: cachePath != nil,
+            columnTitlesCount: columnTitles.count,
+            columnCount: columnCount,
+            previewRows: previewRows
+        )
     }
 
     func grid(_ grid: VirtualizedGridView, titleForColumn column: Int) -> String {
@@ -492,6 +502,27 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         item.toolTip = queryPaneVisible ? "Hide the SQL pane" : "Show the SQL pane"
     }
 
+    private func updateDatasetToolbarItemVisibility() {
+        let shouldHide = sourceFileURL == nil
+        view.window?.toolbar?.items
+            .filter { $0.itemIdentifier == .queryPane || $0.itemIdentifier == .search || $0.itemIdentifier == .exportView }
+            .forEach { $0.isHidden = shouldHide }
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(exportViewAsCSV(_:)) {
+            return canExportCurrentView
+        }
+        return true
+    }
+
+    func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
+        if item.itemIdentifier == .exportView {
+            return canExportCurrentView
+        }
+        return true
+    }
+
     private func executeQuery(_ sql: String, baseQuery: String? = nil, sorting: [SortDescriptor]? = nil) {
         guard let cachePath, let importID = currentImportID else { return }
         let presentation = SQLQueryPresentation(sourcePath: sourceFileURL?.path ?? "")
@@ -654,11 +685,11 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.openCSV, .queryPane, .search, .flexibleSpace, .space]
+        [.openCSV, .queryPane, .exportView, .search, .flexibleSpace, .space]
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.openCSV, .queryPane, .flexibleSpace, .search]
+        [.openCSV, .queryPane, .exportView, .flexibleSpace, .search]
     }
 
     func toolbar(
@@ -685,12 +716,22 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
             item.paletteLabel = "Hide SQL"
             item.toolTip = "Hide the SQL pane"
             return item
+        case .exportView:
+            let item = NSToolbarItem(itemIdentifier: .exportView)
+            item.target = self
+            item.action = #selector(exportViewAsCSV(_:))
+            item.image = NSImage(systemSymbolName: "square.and.arrow.down", accessibilityDescription: "Save As")
+            item.label = "Save As"
+            item.paletteLabel = "Export view"
+            item.toolTip = "Export the current view as CSV (Shift-Command-S)"
+            return item
         case .search:
-            let item = NSToolbarItem(itemIdentifier: .search)
+            let item = NSSearchToolbarItem(itemIdentifier: .search)
             item.label = "Search"
             item.paletteLabel = "Search dataset"
             item.toolTip = "Search dataset (⌘F)"
-            item.view = toolbarSearchField
+            item.searchField = toolbarSearchField
+            item.preferredWidthForSearchField = 220
             return item
         default:
             return nil
@@ -743,6 +784,133 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         return "SELECT *\nFROM \(path)"
     }
 
+    @objc func exportViewAsCSV(_ sender: Any?) {
+        guard canExportCurrentView else {
+            NSSound.beep()
+            return
+        }
+        guard let window = view.window else { return }
+
+        let panel = NSSavePanel()
+        panel.title = "Export View"
+        panel.prompt = "Save"
+        panel.nameFieldStringValue = suggestedExportFilename()
+        panel.canCreateDirectories = true
+        panel.allowedContentTypes = [UTType(filenameExtension: "csv")!]
+
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let self, let destinationURL = panel.url else { return }
+            self.exportCurrentView(to: destinationURL)
+        }
+    }
+
+    private func exportCurrentView(to destinationURL: URL) {
+        guard let cachePath, let rowCount = currentExportRowCount() else { return }
+        let headers = (0..<Self.displayedColumnCount(
+            cachePathIsAvailable: true,
+            columnTitlesCount: columnTitles.count,
+            columnCount: columnCount,
+            previewRows: previewRows
+        )).map { column in
+            columnTitles.indices.contains(column) ? columnTitles[column] : "Column \(column + 1)"
+        }
+        let engineSQL = activeQuerySQL
+        let importID = currentImportID
+        let exportViewID = currentViewID
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else { return }
+            do {
+                try self.writeCSVExport(
+                    to: destinationURL,
+                    cachePath: cachePath,
+                    engineSQL: engineSQL,
+                    rowCount: rowCount,
+                    headers: headers,
+                    importID: importID,
+                    viewID: exportViewID
+                )
+            } catch {
+                DispatchQueue.main.async {
+                    self.presentError(error)
+                }
+            }
+        }
+    }
+
+    private func writeCSVExport(
+        to destinationURL: URL,
+        cachePath: String,
+        engineSQL: String?,
+        rowCount: Int,
+        headers: [String],
+        importID: UUID?,
+        viewID: UUID
+    ) throws {
+        let fileManager = FileManager.default
+        if fileManager.fileExists(atPath: destinationURL.path) {
+            try fileManager.removeItem(at: destinationURL)
+        }
+        fileManager.createFile(atPath: destinationURL.path, contents: nil)
+        let fileHandle = try FileHandle(forWritingTo: destinationURL)
+        defer { fileHandle.closeFile() }
+
+        let writer = CSVExportWriter(fileHandle: fileHandle)
+        try writer.writeLine(headers)
+
+        let pageSize = 512
+        let exportContext = Unmanaged.passRetained(ExportContext(writer: writer))
+        defer { exportContext.release() }
+
+        for offset in stride(from: 0, to: rowCount, by: pageSize) {
+            guard importID == currentImportID, viewID == currentViewID else { return }
+            let limit = min(pageSize, rowCount - offset)
+            let result = cachePath.withCString { path in
+                if let engineSQL {
+                    return engineSQL.withCString { query in
+                        virgule_engine_read_query_page(self.engine, path, query, offset, limit, virguleExportPageCallback, exportContext.toOpaque())
+                    }
+                } else {
+                    return virgule_engine_read_csv_page(self.engine, path, offset, limit, virguleExportPageCallback, exportContext.toOpaque())
+                }
+            }
+            guard result == 0 else { throw CocoaError(.fileWriteUnknown) }
+            if let error = exportContext.takeUnretainedValue().error {
+                throw error
+            }
+        }
+
+        if let error = exportContext.takeUnretainedValue().error {
+            throw error
+        }
+    }
+
+    private func currentExportRowCount() -> Int? {
+        guard cachePath != nil else { return nil }
+        return importedRowCount
+    }
+
+    private var canExportCurrentView: Bool {
+        sourceFileURL != nil && cachePath != nil
+    }
+
+    private func suggestedExportFilename() -> String {
+        let baseName = sourceFileURL?.deletingPathExtension().lastPathComponent ?? "export"
+        return "\(baseName) export.csv"
+    }
+
+    fileprivate static func displayedColumnCount(
+        cachePathIsAvailable: Bool,
+        columnTitlesCount: Int,
+        columnCount: Int,
+        previewRows: [[String]]
+    ) -> Int {
+        if cachePathIsAvailable {
+            return max(columnTitlesCount, columnCount)
+        }
+        return max(columnTitlesCount, previewRows.map { $0.count }.max() ?? 0)
+    }
+
     @objc private func toolbarSearchChanged(_ sender: Any?) {
         guard cachePath != nil else { return }
         applyDatasetSearch(
@@ -774,7 +942,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
            event.charactersIgnoringModifiers?.lowercased() == "f",
             cachePath != nil {
-            view.window?.makeFirstResponder(toolbarSearchField)
+            searchToolbarItem()?.beginSearchInteraction()
             return true
         }
         return super.performKeyEquivalent(with: event)
@@ -790,6 +958,10 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         searchBar.isHidden = false
         NSLayoutConstraint.deactivate(searchHiddenConstraints)
         NSLayoutConstraint.activate(searchVisibleConstraints)
+    }
+
+    private func searchToolbarItem() -> NSSearchToolbarItem? {
+        view.window?.toolbar?.items.first(where: { $0.itemIdentifier == .search }) as? NSSearchToolbarItem
     }
 
     private func hideDatasetSearch() {
@@ -836,6 +1008,15 @@ private struct CachedRow {
 private struct SortDescriptor {
     let column: Int
     var direction: GridSortDirection
+}
+
+private final class ExportContext {
+    let writer: CSVExportWriter
+    var error: Error?
+
+    init(writer: CSVExportWriter) {
+        self.writer = writer
+    }
 }
 
 private final class PageContext {
@@ -896,6 +1077,23 @@ private final class ValidationContext {
     }
 }
 
+private final class CSVExportWriter {
+    private let fileHandle: FileHandle
+
+    init(fileHandle: FileHandle) {
+        self.fileHandle = fileHandle
+    }
+
+    func writeLine(_ values: [String]) throws {
+        let line = values.map(Self.escapeField).joined(separator: ",") + "\n"
+        try fileHandle.write(contentsOf: Data(line.utf8))
+    }
+
+    private static func escapeField(_ value: String) -> String {
+        "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
+    }
+}
+
 private struct ImportEventSnapshot {
     let kind: UInt32
     let importedRows: Int
@@ -948,6 +1146,31 @@ private let virgulePageCallback: VirgulePageCallback = { row, context in
     pageContext.controller?.receivePageRow(snapshot, importID: pageContext.importID, viewID: pageContext.viewID, offset: pageContext.offset)
 }
 
+private let virguleExportPageCallback: VirgulePageCallback = { row, context in
+    guard let row, let context else { return }
+    let exportContext = Unmanaged<ExportContext>.fromOpaque(context).takeUnretainedValue()
+    guard exportContext.error == nil else { return }
+    let pageRow = row.pointee
+    if pageRow.result_row == Int.max {
+        exportContext.error = NSError(
+            domain: "Virgule",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: pageRow.message.map { String(cString: $0) } ?? "Could not export the view."]
+        )
+        return
+    }
+    let values = pageRow.values.map { values in
+        (0 ..< Int(pageRow.value_count)).compactMap { index in
+            values[index].map { String(cString: $0) }
+        }
+    } ?? []
+    do {
+        try exportContext.writer.writeLine(values)
+    } catch {
+        exportContext.error = error
+    }
+}
+
 private let virguleQueryCallback: VirguleImportCallback = { event, context in
     guard let event, let context else { return }
     let queryContext = Unmanaged<QueryContext>.fromOpaque(context).takeUnretainedValue()
@@ -988,37 +1211,8 @@ private let virguleValidationCallback: VirguleImportCallback = { event, context 
 private extension NSToolbarItem.Identifier {
     static let openCSV = NSToolbarItem.Identifier("com.fizzup.virgule.open-csv")
     static let queryPane = NSToolbarItem.Identifier("com.fizzup.virgule.query-pane")
+    static let exportView = NSToolbarItem.Identifier("com.fizzup.virgule.export-view")
     static let search = NSToolbarItem.Identifier("com.fizzup.virgule.search")
-}
-
-/// Keeps the dataset search distinct from the unified toolbar background,
-/// including when the window is inactive or appears in dark mode.
-private final class OutlinedSearchField: NSSearchField {
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        configureOutline()
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        configureOutline()
-    }
-
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        updateOutlineColor()
-    }
-
-    private func configureOutline() {
-        wantsLayer = true
-        layer?.borderWidth = 1
-        layer?.cornerRadius = 7
-        updateOutlineColor()
-    }
-
-    private func updateOutlineColor() {
-        layer?.borderColor = NSColor.tertiaryLabelColor.cgColor
-    }
 }
 
 private final class FileDropView: NSView {

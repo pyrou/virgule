@@ -94,7 +94,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Visually distinguish the toolbar search field and launch the toolbar in icon-only mode.
 - [x] Add single/multi-column sorting with Shift-click.
 - [ ] Add text, empty/non-empty, numeric, and date filters.
-- [x] Add row selection from the row-number gutter, including Command multi-selection.
+- [x] Add row selection from the row-number gutter, including Command multi-selection, Shift-click ranges, and drag ranges.
 - [ ] Add cell, range, and column selection.
 - [x] Copy selected rows as TSV with Command-C.
 - [ ] Add local colored row annotations.
@@ -104,7 +104,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 ## 8. MVP persistence and quality
 
 - [ ] Save/restore bookmarks: name, SQL, visible columns, sizes, sorting/filters, annotations, and view state.
-- [ ] Add explicit export of a view to a new CSV (if retained).
+- [x] Add explicit export of a view to a new CSV (if retained).
 - [ ] Add a local one-million-row dataset generator.
 - [ ] Measure import, search, sorting, and scrolling with a documented procedure.
 - [ ] Define performance targets and run them on Apple Silicon.

@@ -28,6 +28,24 @@ struct virguleTests {
         ) == "150 matching rows out of 300 rows")
     }
 
+    @Test func displayedColumnCountIgnoresPreviewColumnsAfterImport() {
+        let previewRows = [["Ada", "Paris", "France"]]
+
+        #expect(ContentViewController.displayedColumnCount(
+            cachePathIsAvailable: false,
+            columnTitlesCount: 1,
+            columnCount: 0,
+            previewRows: previewRows
+        ) == 3)
+
+        #expect(ContentViewController.displayedColumnCount(
+            cachePathIsAvailable: true,
+            columnTitlesCount: 1,
+            columnCount: 1,
+            previewRows: previewRows
+        ) == 1)
+    }
+
     @Test func datasetSearchBuildsTextSearchAcrossEveryColumn() {
         let sql = DatasetSearch.filteredSQL(
             baseSQL: "SELECT name, city FROM csv",
@@ -97,6 +115,32 @@ struct virguleTests {
         #expect(grid.selectedRows == IndexSet([1, 3]))
         #expect(grid.copySelection(to: pasteboard))
         #expect(pasteboard.string(forType: .string) == "1,0\t1,1\t1,2\n3,0\t3,1\t3,2")
+    }
+
+    @Test func gridSelectsContinuousRowsFromRowNumberDrag() {
+        let dataSource = GridDataSource(rows: 10, columns: 2)
+        let grid = VirtualizedGridView(frame: NSRect(x: 0, y: 0, width: 640, height: 360))
+        grid.dataSource = dataSource
+        grid.setSelectedRows(IndexSet(integer: 0))
+
+        grid.selectRowRange(from: 6, through: 3, preservesSelection: false)
+        #expect(grid.selectedRows == IndexSet(integersIn: 3..<7))
+
+        grid.selectRowRange(from: 8, through: 9, preservesSelection: true)
+        #expect(grid.selectedRows == IndexSet([3, 4, 5, 6, 8, 9]))
+    }
+
+    @Test func gridExtendsRowSelectionFromItsShiftClickAnchor() {
+        let dataSource = GridDataSource(rows: 10, columns: 2)
+        let grid = VirtualizedGridView(frame: NSRect(x: 0, y: 0, width: 640, height: 360))
+        grid.dataSource = dataSource
+
+        // setSelectedRows establishes the same anchor that a first gutter
+        // click does; a subsequent Shift-click extends from that row.
+        grid.setSelectedRows(IndexSet(integer: 2))
+        grid.extendRowSelection(to: 7, preservesSelection: false)
+
+        #expect(grid.selectedRows == IndexSet(integersIn: 2..<8))
     }
 
     @Test func sqlEditorHighlightsKeywordsAndComments() {
