@@ -1,13 +1,14 @@
 import AppKit
 import UniformTypeIdentifiers
 
-final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitViewDelegate, VirtualizedGridDataSource {
+final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitViewDelegate, VirtualizedGridDataSource, NSSearchFieldDelegate {
     private let engine = virgule_engine_create()
     private let titleLabel = NSTextField(labelWithString: "Open a CSV file to begin")
     private let detailLabel = NSTextField(wrappingLabelWithString: "Choose a CSV file or drag one into this window.")
     private let gridView = VirtualizedGridView()
     private let queryBar = SQLQueryBar()
     private let searchBar = DatasetSearchBar()
+    private let toolbarSearchField = OutlinedSearchField()
     private let contentSplitView = NSSplitView()
     private let gridContainer = NSView()
     private let tableFooterContainer = NSView()
@@ -76,8 +77,17 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         queryBar.toolTip = "The SQL for the current read-only CSV view."
         queryBar.onExecute = { [weak self] sql in self?.executeQuery(sql) }
         queryBar.onSQLChanged = { [weak self] sql in self?.validateQueryWhileTyping(sql) }
-        searchBar.onSearchChanged = { [weak self] search in self?.applyDatasetSearch(search) }
+        searchBar.onOptionsChanged = { [weak self] column, usesRegularExpression in
+            self?.applyDatasetSearch(text: self?.toolbarSearchField.stringValue ?? "", column: column, usesRegularExpression: usesRegularExpression)
+        }
         searchBar.onDismiss = { [weak self] in self?.hideDatasetSearch() }
+        toolbarSearchField.placeholderString = "Search"
+        toolbarSearchField.delegate = self
+        toolbarSearchField.target = self
+        toolbarSearchField.action = #selector(toolbarSearchChanged(_:))
+        toolbarSearchField.sendsSearchStringImmediately = true
+        toolbarSearchField.bezelStyle = .roundedBezel
+        toolbarSearchField.frame.size = NSSize(width: 220, height: 28)
 
         openButton.bezelStyle = .rounded
         openButton.target = self
@@ -85,6 +95,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
 
         tableFooter.font = .systemFont(ofSize: 11)
         tableFooter.textColor = .secondaryLabelColor
+        tableFooter.alignment = .right
         tableFooter.lineBreakMode = .byTruncatingMiddle
         tableFooter.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
@@ -197,6 +208,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         sortDescriptors = []
         datasetSearch = nil
         searchBar.clear()
+        toolbarSearchField.stringValue = ""
         currentViewID = UUID()
         currentValidationID = UUID()
         scheduledValidation?.cancel()
@@ -418,7 +430,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
             return
         }
         let rowLabel = sourceRowCount == 1 ? "1 row" : "\(sourceRowCount) rows"
-        tableFooter.stringValue = "\(rowLabel)  ·  \(sourceFileURL.path)"
+        tableFooter.stringValue = "\(rowLabel)"
         tableFooter.toolTip = sourceFileURL.path
     }
 
@@ -472,6 +484,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         } else {
             datasetSearch = nil
             searchBar.clear()
+            toolbarSearchField.stringValue = ""
             baseQuerySQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
             baseQueryReadsCSV = false
             sortDescriptors = []
@@ -620,11 +633,11 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.openCSV, .queryPane, .flexibleSpace, .space]
+        [.openCSV, .queryPane, .search, .flexibleSpace, .space]
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.openCSV, .queryPane, .flexibleSpace]
+        [.openCSV, .queryPane, .flexibleSpace, .search]
     }
 
     func toolbar(
@@ -650,6 +663,13 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
             item.label = "Hide SQL"
             item.paletteLabel = "Hide SQL"
             item.toolTip = "Hide the SQL pane"
+            return item
+        case .search:
+            let item = NSToolbarItem(itemIdentifier: .search)
+            item.label = "Search"
+            item.paletteLabel = "Search dataset"
+            item.toolTip = "Search dataset (⌘F)"
+            item.view = toolbarSearchField
             return item
         default:
             return nil
@@ -702,6 +722,27 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         return "SELECT *\nFROM \(path)"
     }
 
+    @objc private func toolbarSearchChanged(_ sender: Any?) {
+        guard cachePath != nil else { return }
+        applyDatasetSearch(
+            text: toolbarSearchField.stringValue,
+            column: searchBar.selectedColumn,
+            usesRegularExpression: searchBar.usesRegularExpression
+        )
+    }
+
+    private func applyDatasetSearch(text: String, column: String?, usesRegularExpression: Bool) {
+        guard !text.isEmpty else {
+            applyDatasetSearch(nil)
+            hideSearchOptions()
+            return
+        }
+        showSearchOptions()
+        let search = DatasetSearch(text: text, column: column, usesRegularExpression: usesRegularExpression)
+        guard searchBar.validateRegularExpression(text) else { return }
+        applyDatasetSearch(search)
+    }
+
     private func applyDatasetSearch(_ search: DatasetSearch?) {
         guard cachePath != nil, datasetSearch != search else { return }
         datasetSearch = search
@@ -711,15 +752,14 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
            event.charactersIgnoringModifiers?.lowercased() == "f",
-           cachePath != nil {
-            showDatasetSearch()
-            searchBar.focusSearchField()
+            cachePath != nil {
+            view.window?.makeFirstResponder(toolbarSearchField)
             return true
         }
         return super.performKeyEquivalent(with: event)
     }
 
-    private func showDatasetSearch() {
+    private func showSearchOptions() {
         guard searchBar.isHidden else { return }
         searchBar.isHidden = false
         NSLayoutConstraint.deactivate(searchHiddenConstraints)
@@ -727,13 +767,24 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     }
 
     private func hideDatasetSearch() {
-        guard !searchBar.isHidden else { return }
+        toolbarSearchField.stringValue = ""
         searchBar.clear()
         applyDatasetSearch(nil)
+        hideSearchOptions()
+        view.window?.makeFirstResponder(gridView)
+    }
+
+    private func hideSearchOptions() {
+        guard !searchBar.isHidden else { return }
         searchBar.isHidden = true
         NSLayoutConstraint.deactivate(searchVisibleConstraints)
         NSLayoutConstraint.activate(searchHiddenConstraints)
-        view.window?.makeFirstResponder(gridView)
+    }
+
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        guard control === toolbarSearchField, commandSelector == #selector(NSResponder.cancelOperation(_:)) else { return false }
+        hideDatasetSearch()
+        return true
     }
 
     nonisolated private static func quoteIdentifier(_ identifier: String) -> String {
@@ -911,6 +962,24 @@ private let virguleValidationCallback: VirguleImportCallback = { event, context 
 private extension NSToolbarItem.Identifier {
     static let openCSV = NSToolbarItem.Identifier("com.fizzup.virgule.open-csv")
     static let queryPane = NSToolbarItem.Identifier("com.fizzup.virgule.query-pane")
+    static let search = NSToolbarItem.Identifier("com.fizzup.virgule.search")
+}
+
+/// Keeps the dataset search distinct from the unified toolbar background,
+/// including when the window is inactive or appears in dark mode.
+private final class OutlinedSearchField: NSSearchField {
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        let border = NSBezierPath(
+            roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5),
+            xRadius: 7,
+            yRadius: 7
+        )
+        NSColor.separatorColor.setStroke()
+        border.lineWidth = 1
+        border.stroke()
+    }
 }
 
 private final class FileDropView: NSView {

@@ -39,27 +39,29 @@ struct DatasetSearch: Equatable {
 }
 
 final class DatasetSearchBar: NSView {
-    var onSearchChanged: ((DatasetSearch?) -> Void)?
+    var onOptionsChanged: ((String?, Bool) -> Void)?
     var onDismiss: (() -> Void)?
 
-    private let searchField = NSSearchField()
     private let columnPopup = NSPopUpButton()
     private let regexButton = NSButton(checkboxWithTitle: "Regex", target: nil, action: nil)
     private let closeButton = NSButton(image: NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Close search")!, target: nil, action: nil)
     private let messageLabel = NSTextField(labelWithString: "")
     private var columns: [String] = []
 
+    var selectedColumn: String? {
+        columnPopup.selectedItem?.representedObject as? String
+    }
+
+    var usesRegularExpression: Bool {
+        regexButton.state == .on
+    }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        searchField.placeholderString = "Search dataset"
-        searchField.target = self
-        searchField.action = #selector(searchChanged(_:))
-        searchField.sendsSearchStringImmediately = true
-
         columnPopup.target = self
-        columnPopup.action = #selector(searchChanged(_:))
+        columnPopup.action = #selector(optionsChanged(_:))
         regexButton.target = self
-        regexButton.action = #selector(searchChanged(_:))
+        regexButton.action = #selector(optionsChanged(_:))
         regexButton.setContentHuggingPriority(.required, for: .horizontal)
         regexButton.setContentCompressionResistancePriority(.required, for: .horizontal)
         regexButton.toolTip = "Interpret the search text as a regular expression"
@@ -75,7 +77,7 @@ final class DatasetSearchBar: NSView {
         messageLabel.font = .systemFont(ofSize: 11)
         messageLabel.lineBreakMode = .byTruncatingTail
 
-        let stack = NSStackView(views: [searchField, columnPopup, regexButton, messageLabel, closeButton])
+        let stack = NSStackView(views: [columnPopup, regexButton, messageLabel, closeButton])
         stack.orientation = .horizontal
         stack.alignment = .centerY
         stack.spacing = 8
@@ -86,10 +88,8 @@ final class DatasetSearchBar: NSView {
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
             stack.topAnchor.constraint(equalTo: topAnchor),
             stack.bottomAnchor.constraint(equalTo: bottomAnchor),
-            searchField.widthAnchor.constraint(greaterThanOrEqualToConstant: 180),
             columnPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 150),
         ])
-        searchField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         columnPopup.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         setColumns([])
     }
@@ -112,39 +112,28 @@ final class DatasetSearchBar: NSView {
     }
 
     func clear() {
-        searchField.stringValue = ""
         regexButton.state = .off
         columnPopup.selectItem(at: 0)
         messageLabel.stringValue = ""
     }
 
-    func focusSearchField() {
-        window?.makeFirstResponder(searchField)
-    }
-
-    @objc private func searchChanged(_ sender: Any?) {
-        let search = DatasetSearch(
-            text: searchField.stringValue,
-            column: columnPopup.selectedItem?.representedObject as? String,
-            usesRegularExpression: regexButton.state == .on
-        )
-        guard search.isActive else {
-            messageLabel.stringValue = ""
-            onSearchChanged?(nil)
-            return
-        }
-        if search.usesRegularExpression {
+    func validateRegularExpression(_ text: String) -> Bool {
+        if regexButton.state == .on {
             do {
-                _ = try NSRegularExpression(pattern: search.text)
+                _ = try NSRegularExpression(pattern: text)
                 messageLabel.stringValue = ""
             } catch {
                 messageLabel.stringValue = "Invalid regular expression"
-                return
+                return false
             }
         } else {
             messageLabel.stringValue = ""
         }
-        onSearchChanged?(search)
+        return true
+    }
+
+    @objc private func optionsChanged(_ sender: Any?) {
+        onOptionsChanged?(selectedColumn, usesRegularExpression)
     }
 
     @objc private func dismissSearch(_ sender: Any?) {

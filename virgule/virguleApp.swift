@@ -21,7 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.titlebarAppearsTransparent = true
         window.contentViewController = controller
         let toolbar = NSToolbar(identifier: "com.fizzup.virgule.main-toolbar")
-        toolbar.displayMode = .iconAndLabel
+        toolbar.displayMode = .iconOnly
         toolbar.delegate = controller
         window.toolbar = toolbar
         window.toolbarStyle = .unified
