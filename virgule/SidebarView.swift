@@ -26,6 +26,7 @@ final class SidebarView: NSView {
     private var bookmarks: [SidebarBookmark] = []
     private var recentFiles: [URL] = []
     private var currentSourcePath = ""
+    private let sidebarMaterial = NSVisualEffectView()
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -58,7 +59,9 @@ final class SidebarView: NSView {
         for (index, url) in recentFiles.enumerated() {
             let button = NSButton(title: url.lastPathComponent, target: self, action: #selector(recentFileClicked(_:)))
             button.tag = index
-            button.bezelStyle = .recessed
+            button.isBordered = false
+            button.bezelStyle = .texturedRounded
+            button.showsBorderOnlyWhileMouseInside = true
             button.alignment = .left
             button.image = NSImage(systemSymbolName: "doc", accessibilityDescription: "CSV file")
             button.imagePosition = .imageLeading
@@ -91,7 +94,9 @@ final class SidebarView: NSView {
         for (index, bookmark) in bookmarks.enumerated() {
             let button = NSButton(title: bookmark.name, target: self, action: #selector(bookmarkClicked(_:)))
             button.tag = index
-            button.bezelStyle = .recessed
+            button.isBordered = false
+            button.bezelStyle = .texturedRounded
+            button.showsBorderOnlyWhileMouseInside = true
             button.alignment = .left
             button.image = NSImage(systemSymbolName: "bookmark", accessibilityDescription: "Bookmark")
             button.imagePosition = .imageLeading
@@ -108,8 +113,10 @@ final class SidebarView: NSView {
     }()
 
     private func buildView() {
-        wantsLayer = true
-        layer?.backgroundColor = NSColor.controlBackgroundColor.withAlphaComponent(0.55).cgColor
+        sidebarMaterial.material = .sidebar
+        sidebarMaterial.blendingMode = .withinWindow
+        sidebarMaterial.state = .active
+        addSubview(sidebarMaterial)
 
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
@@ -117,12 +124,13 @@ final class SidebarView: NSView {
         let content = NSStackView()
         content.orientation = .vertical
         content.alignment = .leading
-        content.spacing = 18
-        content.edgeInsets = NSEdgeInsets(top: 18, left: 14, bottom: 18, right: 14)
+        content.spacing = 16
+        content.edgeInsets = NSEdgeInsets(top: 14, left: 12, bottom: 18, right: 12)
 
         let fileSection = section(title: "FILES", symbol: "doc")
         let fileButton = NSButton(title: "Open CSV…", target: self, action: #selector(openFileClicked(_:)))
-        fileButton.bezelStyle = .recessed
+        fileButton.bezelStyle = .rounded
+        fileButton.controlSize = .small
         fileButton.alignment = .left
         fileButton.image = NSImage(systemSymbolName: "plus", accessibilityDescription: "Open")
         fileButton.imagePosition = .imageLeading
@@ -137,7 +145,10 @@ final class SidebarView: NSView {
 
         let bookmarkSection = section(title: "BOOKMARKS", symbol: "bookmark")
         let addButton = NSButton(title: "Add current view", target: self, action: #selector(addBookmarkClicked(_:)))
-        addButton.bezelStyle = .recessed
+        addButton.isBordered = false
+        addButton.bezelStyle = .texturedRounded
+        addButton.showsBorderOnlyWhileMouseInside = true
+        addButton.controlSize = .small
         addButton.alignment = .left
         addButton.image = NSImage(systemSymbolName: "plus", accessibilityDescription: "Add bookmark")
         addButton.imagePosition = .imageLeading
@@ -151,9 +162,14 @@ final class SidebarView: NSView {
         content.addArrangedSubview(bookmarkSection)
         scrollView.documentView = content
         addSubview(scrollView)
+        sidebarMaterial.translatesAutoresizingMaskIntoConstraints = false
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         content.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
+            sidebarMaterial.leadingAnchor.constraint(equalTo: leadingAnchor),
+            sidebarMaterial.trailingAnchor.constraint(equalTo: trailingAnchor),
+            sidebarMaterial.topAnchor.constraint(equalTo: topAnchor),
+            sidebarMaterial.bottomAnchor.constraint(equalTo: bottomAnchor),
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
             scrollView.topAnchor.constraint(equalTo: topAnchor),
