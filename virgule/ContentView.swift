@@ -199,6 +199,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         // Associate the window with the source document so AppKit supplies the
         // native filename title, proxy icon, and file-location menu.
         view.window?.representedURL = url
+        view.window?.title = url.lastPathComponent
         updateDatasetToolbarItemVisibility()
         sourceRowCount = 0
         importedRowCount = 0
