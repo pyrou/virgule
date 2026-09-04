@@ -85,6 +85,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let fileMenu = NSMenu(title: "File")
         fileMenu.addItem(withTitle: "Open…", action: #selector(openDocument(_:)), keyEquivalent: "o")
+        let openNewItem = fileMenu.addItem(withTitle: "Open in New Window…", action: #selector(openDocument(_:)), keyEquivalent: "o")
+        openNewItem.keyEquivalentModifierMask = [.command, .shift]
         let newWindowItem = fileMenu.addItem(withTitle: "New Window", action: #selector(newWindow(_:)), keyEquivalent: "n")
         newWindowItem.keyEquivalentModifierMask = [.command, .shift]
         let saveAsItem = fileMenu.addItem(withTitle: "Save As…", action: #selector(ContentViewController.exportViewAsCSV(_:)), keyEquivalent: "s")
