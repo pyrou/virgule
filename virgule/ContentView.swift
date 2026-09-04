@@ -163,7 +163,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         view = dropView
     }
 
-    @objc private func openCSV(_ sender: Any?) {
+    @objc func openCSV(_ sender: Any?) {
         let panel = NSOpenPanel()
         panel.title = "Open CSV file"
         panel.prompt = "Open"
@@ -757,6 +757,11 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
             return true
         }
         return super.performKeyEquivalent(with: event)
+    }
+
+    @objc func focusDatasetSearch(_ sender: Any?) {
+        guard cachePath != nil else { return }
+        view.window?.makeFirstResponder(toolbarSearchField)
     }
 
     private func showSearchOptions() {
