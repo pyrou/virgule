@@ -385,6 +385,56 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
         sortDescriptors.first(where: { $0.column == column })?.direction
     }
 
+    func grid(_ grid: VirtualizedGridView, contextMenuForColumn column: Int) -> NSMenu? {
+        let menu = NSMenu()
+        let ascending = NSMenuItem(title: "Sort ascending", action: #selector(sortColumnFromContext(_:)), keyEquivalent: "")
+        ascending.target = self
+        ascending.tag = column * 2
+        let descending = NSMenuItem(title: "Sort descending", action: #selector(sortColumnFromContext(_:)), keyEquivalent: "")
+        descending.target = self
+        descending.tag = column * 2 + 1
+        menu.addItem(ascending)
+        menu.addItem(descending)
+        menu.addItem(.separator())
+        let copyName = NSMenuItem(title: "Copy column name", action: #selector(copyColumnName(_:)), keyEquivalent: "")
+        copyName.target = self
+        copyName.tag = column
+        copyName.representedObject = grid.title(forColumn: column)
+        menu.addItem(copyName)
+        let stats = NSMenuItem(title: "Show statistics", action: #selector(showColumnStatistics(_:)), keyEquivalent: "")
+        stats.target = self
+        stats.tag = column
+        stats.representedObject = grid.title(forColumn: column)
+        menu.addItem(stats)
+        return menu
+    }
+
+    @objc private func copyColumnName(_ sender: NSMenuItem) {
+        guard let name = sender.representedObject as? String else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(name, forType: .string)
+    }
+
+    @objc private func sortColumnFromContext(_ sender: NSMenuItem) {
+        let column = sender.tag / 2
+        let direction: GridSortDirection = sender.tag.isMultiple(of: 2) ? .ascending : .descending
+        sortDescriptors = [SortDescriptor(column: column, direction: direction)]
+        let sql = renderedQuerySQL()
+        queryBar.sql = sql
+        executeQuery(sql, baseQuery: baseQuerySQL, sorting: sortDescriptors)
+    }
+
+    @objc private func showColumnStatistics(_ sender: NSMenuItem) {
+        let column = sender.tag
+        let values = cachedRows.values.compactMap { row in row.values.indices.contains(column) ? row.values[column] : nil }
+        let numbers = values.compactMap(Double.init)
+        let average = numbers.isEmpty ? "—" : String(format: "%.2f", numbers.reduce(0, +) / Double(numbers.count))
+        let title = sender.representedObject as? String ?? "Column"
+        let minimum = values.min() ?? "—"
+        let maximum = values.max() ?? "—"
+        detailLabel.stringValue = "\(title): min \(minimum) · max \(maximum) · average \(average) · \(values.count) loaded values"
+    }
+
     func grid(_ grid: VirtualizedGridView, didResizeColumn column: Int, width: CGFloat) {
         guard let cachePath, columnTitles.indices.contains(column) else { return }
         let columnName = columnTitles[column]

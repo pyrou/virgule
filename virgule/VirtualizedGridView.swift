@@ -27,6 +27,7 @@ protocol VirtualizedGridDataSource: AnyObject {
     func grid(_ grid: VirtualizedGridView, sortDirectionForColumn column: Int) -> GridSortDirection?
     /// Records a user-initiated resize by stable result-column title.
     func grid(_ grid: VirtualizedGridView, didResizeColumn column: Int, width: CGFloat)
+    func grid(_ grid: VirtualizedGridView, contextMenuForColumn column: Int) -> NSMenu?
     /// Announces the rows currently needed to render the viewport. Data
     /// sources must return immediately from value lookup and can load these
     /// rows asynchronously from a paginated backing store.
@@ -53,6 +54,7 @@ extension VirtualizedGridDataSource {
     func grid(_ grid: VirtualizedGridView, sortDirectionForColumn column: Int) -> GridSortDirection? { nil }
 
     func grid(_ grid: VirtualizedGridView, didResizeColumn column: Int, width: CGFloat) {}
+    func grid(_ grid: VirtualizedGridView, contextMenuForColumn column: Int) -> NSMenu? { nil }
 }
 
 /// A scrollable AppKit grid which creates row and cell views only for the
@@ -131,6 +133,10 @@ final class VirtualizedGridView: NSView, NSMenuItemValidation {
         headerDocumentView.requestSort = { [weak self] column, appending in
             guard let self else { return }
             self.dataSource?.grid(self, didRequestSortColumn: column, appending: appending)
+        }
+        headerDocumentView.contextMenuForColumn = { [weak self] column in
+            guard let self else { return nil }
+            return self.dataSource?.grid(self, contextMenuForColumn: column)
         }
 
         rowNumberClipView.drawsBackground = false
@@ -286,7 +292,7 @@ final class VirtualizedGridView: NSView, NSMenuItemValidation {
         dataSource?.grid(self, rowNumberForRow: row) ?? row + 1
     }
 
-    fileprivate func title(forColumn column: Int) -> String {
+    func title(forColumn column: Int) -> String {
         dataSource?.grid(self, titleForColumn: column) ?? ""
     }
 
@@ -744,6 +750,7 @@ private final class VirtualizedGridHeaderDocumentView: NSView {
     }
     var resizeColumn: ((Int, CGFloat) -> Void)?
     var requestSort: ((Int, Bool) -> Void)?
+    var contextMenuForColumn: ((Int) -> NSMenu?)?
 
     override var isFlipped: Bool { true }
 
@@ -788,6 +795,7 @@ private final class VirtualizedGridHeaderDocumentView: NSView {
             cell.resizeColumn = resizeColumn
             cell.sortDirection = grid?.sortDirection(forColumn: column)
             cell.requestSort = requestSort
+            cell.contextMenuForColumn = contextMenuForColumn
         }
     }
 
@@ -804,6 +812,7 @@ private final class VirtualizedGridHeaderCellView: NSView {
     var column = 0
     var resizeColumn: ((Int, CGFloat) -> Void)?
     var requestSort: ((Int, Bool) -> Void)?
+    var contextMenuForColumn: ((Int) -> NSMenu?)?
     var sortDirection: GridSortDirection? {
         didSet { updateLabel() }
     }
@@ -865,6 +874,10 @@ private final class VirtualizedGridHeaderCellView: NSView {
                 break
             }
         }
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        contextMenuForColumn?(column)
     }
 
     private func updateLabel() {
