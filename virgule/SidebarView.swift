@@ -95,7 +95,7 @@ final class SidebarView: NSView {
             button.alignment = .left
             button.image = NSImage(systemSymbolName: "bookmark", accessibilityDescription: "Bookmark")
             button.imagePosition = .imageLeading
-            button.toolTip = "(bookmark.sql)\nBookmarked (Self.dateFormatter.string(from: bookmark.createdAt))"
+            button.toolTip = "Source: \(bookmark.sourcePath)\n\(bookmark.sql)\nBookmarked \(Self.dateFormatter.string(from: bookmark.createdAt))"
             bookmarkStack.addArrangedSubview(button)
         }
     }
