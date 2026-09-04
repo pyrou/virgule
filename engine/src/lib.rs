@@ -10,7 +10,7 @@ use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
 use rusqlite::functions::FunctionFlags;
 use rusqlite::types::ValueRef;
 use rusqlite::{Connection, OptionalExtension};
-use regex::Regex;
+use fancy_regex::Regex;
 
 /// Opaque state: its layout is intentionally private to Rust.
 pub struct VirguleEngine {
@@ -45,7 +45,7 @@ pub(crate) fn open_query_cache(path: impl AsRef<Path>) -> rusqlite::Result<Conne
             let pattern: String = context.get(0)?;
             let value: String = context.get(1)?;
             Ok(Regex::new(&pattern)
-                .map(|expression| expression.is_match(&value))
+                .and_then(|expression| expression.is_match(&value))
                 .unwrap_or(false))
         },
     )?;

@@ -135,6 +135,14 @@ fn query_cache_supports_regular_expression_search() {
         )
         .expect("runs regular expression search");
     assert_eq!(matches, 1);
+    let negative_lookahead_matches: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM (SELECT 'Subscription' AS description UNION ALL SELECT 'Refund' UNION ALL SELECT 'Reversal') WHERE virgule_regexp('^(?!Re)', description)",
+            [],
+            |row| row.get(0),
+        )
+        .expect("supports negative lookahead regular expression search");
+    assert_eq!(negative_lookahead_matches, 1);
     let invalid_pattern: i64 = connection
         .query_row("SELECT virgule_regexp('[', 'Ada')", [], |row| row.get(0))
         .expect("handles invalid regular expression");

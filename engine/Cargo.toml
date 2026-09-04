@@ -8,7 +8,7 @@ rust-version = "1.85"
 crate-type = ["staticlib"]
 
 [dependencies]
-regex = "1.12.4"
+fancy-regex = "0.16.0"
 rusqlite = { version = "0.37", features = ["bundled", "functions", "hooks", "modern_sqlite"] }
 
 [profile.release]
