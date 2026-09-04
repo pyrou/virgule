@@ -52,12 +52,6 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
     }
 
     private func configure() {
-        wantsLayer = true
-        layer?.cornerRadius = 8
-        layer?.borderWidth = 1
-        layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.55).cgColor
-        layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
-
         let scrollView = NSScrollView()
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
@@ -267,10 +261,6 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         validationMessage = message
         validationLabel.stringValue = message ?? ""
         validationLabel.isHidden = message == nil
-        layer?.borderColor = (message == nil
-            ? NSColor.separatorColor.withAlphaComponent(0.55)
-            : NSColor.systemRed.withAlphaComponent(0.8)
-        ).cgColor
         setAccessibilityValue(message)
     }
 

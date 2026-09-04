@@ -76,7 +76,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 
 ## 6. SQL query bar
 
-- [x] Always display the active SQL above the grid.
+- [x] Keep the active SQL readily available from the table view.
 - [x] Support multi-line editing and execution with Command-Return.
 - [x] Immediately reflect valid user SQL in the grid.
 - [x] Update readable SQL from sort and filter actions.
@@ -85,6 +85,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Add contextual completion for keywords, tables, columns, and functions.
 - [x] Add function/operator quick help, undo/redo, history, and copy.
 - [x] Support SQL calculated columns in the view.
+- [x] Move the SQL editor into a togglable, resizable bottom pane and show the source row count and path in a table footer.
 
 ## 7. Data interactions
 

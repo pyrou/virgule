@@ -1,13 +1,16 @@
 import AppKit
 import UniformTypeIdentifiers
 
-final class ContentViewController: NSViewController, NSToolbarDelegate, VirtualizedGridDataSource {
+final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitViewDelegate, VirtualizedGridDataSource {
     private let engine = virgule_engine_create()
     private let titleLabel = NSTextField(labelWithString: "Open a CSV file to begin")
     private let detailLabel = NSTextField(wrappingLabelWithString: "Choose a CSV file or drag one into this window.")
     private let gridView = VirtualizedGridView()
     private let queryBar = SQLQueryBar()
     private let searchBar = DatasetSearchBar()
+    private let contentSplitView = NSSplitView()
+    private let gridContainer = NSView()
+    private let tableFooter = NSTextField(labelWithString: "")
     private let openButton = NSButton(title: "Open CSV…", target: nil, action: nil)
     private let controls = NSStackView()
     private var emptyStateConstraints: [NSLayoutConstraint] = []
@@ -17,7 +20,10 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     private var currentImportID: UUID?
     private var previewRows: [[String]] = []
     private var cachePath: String?
+    private var sourceFileURL: URL?
+    private var sourceRowCount = 0
     private var importedRowCount = 0
+    private var queryPaneVisible = true
     private var cachedRows: [Int: CachedRow] = [:]
     private var loadingPageOffsets = Set<Int>()
     private var columnCount = 0
@@ -58,8 +64,12 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         detailLabel.setContentCompressionResistancePriority(.required, for: .vertical)
 
         gridView.dataSource = self
-        gridView.isHidden = true
-        queryBar.isHidden = true
+        contentSplitView.isVertical = false
+        contentSplitView.dividerStyle = .thin
+        contentSplitView.delegate = self
+        contentSplitView.addArrangedSubview(gridContainer)
+        contentSplitView.addArrangedSubview(queryBar)
+        contentSplitView.isHidden = true
         searchBar.isHidden = true
         queryBar.toolTip = "The SQL for the current read-only CSV view."
         queryBar.onExecute = { [weak self] sql in self?.executeQuery(sql) }
@@ -71,6 +81,18 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         openButton.target = self
         openButton.action = #selector(openCSV(_:))
 
+        tableFooter.font = .systemFont(ofSize: 11)
+        tableFooter.textColor = .secondaryLabelColor
+        tableFooter.lineBreakMode = .byTruncatingMiddle
+        tableFooter.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        gridContainer.addSubview(gridView)
+        gridContainer.addSubview(searchBar)
+        gridContainer.addSubview(tableFooter)
+        gridView.translatesAutoresizingMaskIntoConstraints = false
+        searchBar.translatesAutoresizingMaskIntoConstraints = false
+        tableFooter.translatesAutoresizingMaskIntoConstraints = false
+
         controls.addArrangedSubview(titleLabel)
         controls.addArrangedSubview(detailLabel)
         controls.addArrangedSubview(openButton)
@@ -80,37 +102,26 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
 
         dropView.addSubview(windowHeaderMaterial)
         dropView.addSubview(controls)
-        dropView.addSubview(queryBar)
-        dropView.addSubview(searchBar)
-        dropView.addSubview(gridView)
+        dropView.addSubview(contentSplitView)
         windowHeaderMaterial.translatesAutoresizingMaskIntoConstraints = false
         controls.translatesAutoresizingMaskIntoConstraints = false
-        queryBar.translatesAutoresizingMaskIntoConstraints = false
-        searchBar.translatesAutoresizingMaskIntoConstraints = false
-        gridView.translatesAutoresizingMaskIntoConstraints = false
+        contentSplitView.translatesAutoresizingMaskIntoConstraints = false
 
         emptyStateConstraints = [
             controls.centerXAnchor.constraint(equalTo: dropView.centerXAnchor),
             controls.centerYAnchor.constraint(equalTo: dropView.centerYAnchor),
         ]
         previewStateConstraints = [
-            queryBar.topAnchor.constraint(equalTo: dropView.safeAreaLayoutGuide.topAnchor, constant: 12),
-            queryBar.leadingAnchor.constraint(equalTo: dropView.leadingAnchor, constant: 16),
-            queryBar.trailingAnchor.constraint(equalTo: dropView.trailingAnchor, constant: -16),
-            queryBar.heightAnchor.constraint(equalToConstant: 122),
-            searchBar.topAnchor.constraint(equalTo: queryBar.bottomAnchor, constant: 8),
-            searchBar.leadingAnchor.constraint(equalTo: dropView.leadingAnchor, constant: 16),
-            searchBar.trailingAnchor.constraint(equalTo: dropView.trailingAnchor, constant: -16),
-            searchBar.heightAnchor.constraint(equalToConstant: 26),
-            gridView.leadingAnchor.constraint(equalTo: dropView.leadingAnchor),
-            gridView.trailingAnchor.constraint(equalTo: dropView.trailingAnchor),
-            gridView.bottomAnchor.constraint(equalTo: dropView.bottomAnchor),
+            contentSplitView.leadingAnchor.constraint(equalTo: dropView.leadingAnchor),
+            contentSplitView.trailingAnchor.constraint(equalTo: dropView.trailingAnchor),
+            contentSplitView.topAnchor.constraint(equalTo: dropView.safeAreaLayoutGuide.topAnchor),
+            contentSplitView.bottomAnchor.constraint(equalTo: dropView.bottomAnchor),
         ]
         searchVisibleConstraints = [
             gridView.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 8),
         ]
         searchHiddenConstraints = [
-            gridView.topAnchor.constraint(equalTo: queryBar.bottomAnchor, constant: 8),
+            gridView.topAnchor.constraint(equalTo: gridContainer.topAnchor),
         ]
         NSLayoutConstraint.activate([
             windowHeaderMaterial.leadingAnchor.constraint(equalTo: dropView.leadingAnchor),
@@ -118,7 +129,17 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
             windowHeaderMaterial.topAnchor.constraint(equalTo: dropView.topAnchor),
             windowHeaderMaterial.bottomAnchor.constraint(equalTo: dropView.bottomAnchor),
             detailLabel.widthAnchor.constraint(lessThanOrEqualTo: dropView.widthAnchor, constant: -80),
-            gridView.heightAnchor.constraint(greaterThanOrEqualToConstant: 220),
+            gridView.leadingAnchor.constraint(equalTo: gridContainer.leadingAnchor),
+            gridView.trailingAnchor.constraint(equalTo: gridContainer.trailingAnchor),
+            gridView.bottomAnchor.constraint(equalTo: tableFooter.topAnchor),
+            tableFooter.leadingAnchor.constraint(equalTo: gridContainer.leadingAnchor, constant: 12),
+            tableFooter.trailingAnchor.constraint(equalTo: gridContainer.trailingAnchor, constant: -12),
+            tableFooter.bottomAnchor.constraint(equalTo: gridContainer.bottomAnchor),
+            tableFooter.heightAnchor.constraint(equalToConstant: 24),
+            searchBar.topAnchor.constraint(equalTo: gridContainer.topAnchor, constant: 8),
+            searchBar.leadingAnchor.constraint(equalTo: gridContainer.leadingAnchor, constant: 16),
+            searchBar.trailingAnchor.constraint(equalTo: gridContainer.trailingAnchor, constant: -16),
+            searchBar.heightAnchor.constraint(equalToConstant: 26),
         ])
         NSLayoutConstraint.activate(emptyStateConstraints)
         view = dropView
@@ -152,6 +173,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         currentImportID = importID
         previewRows = []
         cachePath = nil
+        sourceFileURL = url
+        sourceRowCount = 0
         importedRowCount = 0
         cachedRows = [:]
         loadingPageOffsets = []
@@ -169,6 +192,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         currentValidationID = UUID()
         scheduledValidation?.cancel()
         queryBar.sql = ""
+        updateTableFooter()
         setGridVisible(false)
         gridView.reloadData()
         titleLabel.stringValue = "Importing \(url.lastPathComponent)…"
@@ -225,6 +249,8 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
                 self.openButton.isEnabled = true
                 self.cachePath = event.message
                 self.importedRowCount = event.importedRows
+                self.sourceRowCount = event.importedRows
+                self.updateTableFooter()
                 self.setGridVisible(true)
                 self.gridView.reloadData()
             case VIRGULE_IMPORT_ERROR.rawValue:
@@ -353,8 +379,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     }
 
     private func setGridVisible(_ isVisible: Bool) {
-        gridView.isHidden = !isVisible
-        queryBar.isHidden = !isVisible
+        contentSplitView.isHidden = !isVisible
         searchBar.isHidden = true
         controls.isHidden = isVisible
         NSLayoutConstraint.deactivate(isVisible ? emptyStateConstraints : previewStateConstraints)
@@ -363,7 +388,56 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         NSLayoutConstraint.deactivate(searchHiddenConstraints)
         if isVisible {
             NSLayoutConstraint.activate(searchHiddenConstraints)
+            setQueryPaneVisible(queryPaneVisible, animated: false)
         }
+    }
+
+    private func updateTableFooter() {
+        guard let sourceFileURL else {
+            tableFooter.stringValue = ""
+            return
+        }
+        let rowLabel = sourceRowCount == 1 ? "1 row" : "\(sourceRowCount) rows"
+        tableFooter.stringValue = "\(rowLabel)  ·  \(sourceFileURL.path)"
+        tableFooter.toolTip = sourceFileURL.path
+    }
+
+    @objc private func toggleQueryPane(_ sender: Any?) {
+        guard !contentSplitView.isHidden else {
+            NSSound.beep()
+            return
+        }
+        setQueryPaneVisible(!queryPaneVisible, animated: true)
+    }
+
+    private func setQueryPaneVisible(_ isVisible: Bool, animated: Bool) {
+        queryPaneVisible = isVisible
+        let changes = {
+            self.queryBar.isHidden = !isVisible
+            self.contentSplitView.adjustSubviews()
+            if isVisible {
+                let preferredQueryHeight: CGFloat = 180
+                let dividerPosition = max(220, self.contentSplitView.bounds.height - preferredQueryHeight)
+                self.contentSplitView.setPosition(dividerPosition, ofDividerAt: 0)
+            }
+        }
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.16
+                context.allowsImplicitAnimation = true
+                changes()
+            }
+        } else {
+            changes()
+        }
+        updateQueryPaneToolbarItem()
+    }
+
+    private func updateQueryPaneToolbarItem() {
+        guard let item = view.window?.toolbar?.items.first(where: { $0.itemIdentifier == .queryPane }) else { return }
+        item.label = queryPaneVisible ? "Hide SQL" : "Show SQL"
+        item.paletteLabel = item.label
+        item.toolTip = queryPaneVisible ? "Hide the SQL pane" : "Show the SQL pane"
     }
 
     private func executeQuery(_ sql: String, baseQuery: String? = nil, sorting: [SortDescriptor]? = nil) {
@@ -463,11 +537,11 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.openCSV, .flexibleSpace, .space]
+        [.openCSV, .queryPane, .flexibleSpace, .space]
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.openCSV, .flexibleSpace]
+        [.openCSV, .queryPane, .flexibleSpace]
     }
 
     func toolbar(
@@ -475,16 +549,42 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, Virtuali
         itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
         willBeInsertedIntoToolbar flag: Bool
     ) -> NSToolbarItem? {
-        guard itemIdentifier == .openCSV else { return nil }
+        switch itemIdentifier {
+        case .openCSV:
+            let item = NSToolbarItem(itemIdentifier: .openCSV)
+            item.label = "Open CSV"
+            item.paletteLabel = "Open CSV File"
+            item.toolTip = "Open a CSV file"
+            item.target = self
+            item.action = #selector(openCSV(_:))
+            item.image = NSImage(systemSymbolName: "folder", accessibilityDescription: "Open CSV")
+            return item
+        case .queryPane:
+            let item = NSToolbarItem(itemIdentifier: .queryPane)
+            item.target = self
+            item.action = #selector(toggleQueryPane(_:))
+            item.image = NSImage(systemSymbolName: "rectangle.bottomthird.inset.filled", accessibilityDescription: "SQL pane")
+            item.label = "Hide SQL"
+            item.paletteLabel = "Hide SQL"
+            item.toolTip = "Hide the SQL pane"
+            return item
+        default:
+            return nil
+        }
+    }
 
-        let item = NSToolbarItem(itemIdentifier: .openCSV)
-        item.label = "Open CSV"
-        item.paletteLabel = "Open CSV File"
-        item.toolTip = "Open a CSV file"
-        item.target = self
-        item.action = #selector(openCSV(_:))
-        item.image = NSImage(systemSymbolName: "folder", accessibilityDescription: "Open CSV")
-        return item
+    func splitView(
+        _ splitView: NSSplitView,
+        constrainSplitPosition proposedPosition: CGFloat,
+        ofSubviewAt dividerIndex: Int
+    ) -> CGFloat {
+        guard splitView == contentSplitView, dividerIndex == 0 else { return proposedPosition }
+        let minimumGridHeight: CGFloat = 220
+        let minimumQueryHeight: CGFloat = 100
+        return min(
+            max(proposedPosition, minimumGridHeight),
+            max(minimumGridHeight, splitView.bounds.height - minimumQueryHeight)
+        )
     }
 
     private static let csvContentTypes: [UTType] = [
@@ -705,6 +805,7 @@ private let virguleValidationCallback: VirguleImportCallback = { event, context 
 
 private extension NSToolbarItem.Identifier {
     static let openCSV = NSToolbarItem.Identifier("com.fizzup.virgule.open-csv")
+    static let queryPane = NSToolbarItem.Identifier("com.fizzup.virgule.query-pane")
 }
 
 private final class FileDropView: NSView {
