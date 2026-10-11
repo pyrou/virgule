@@ -14,6 +14,8 @@ Virgule is a native macOS CSV explorer powered by Swift, Rust, and SQLite. Brows
 - Sort by one or more columns, search the dataset or a single column with text or regular expressions, and copy selected rows as TSV.
 - Export the current view to a new CSV file.
 
+<img width="1149" height="623" alt="image" src="https://github.com/user-attachments/assets/96633e0d-b0df-4fad-a5fb-6bc7144d0604" />
+
 Virgule is under active development. Dedicated filter controls, cell/range selection, row annotations, and saved bookmarks are still planned. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for progress and acceptance criteria.
 
 ## SQL for any CSV
