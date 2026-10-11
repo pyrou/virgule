@@ -913,8 +913,7 @@ final class ContentViewController: NSViewController, NSToolbarDelegate, NSSplitV
     }
 
     private func sourceQuery() -> String {
-        let path = sourceFileURL?.path ?? "csv"
-        return "SELECT *\nFROM \(path)"
+        SQLQueryPresentation.sourceQuery
     }
 
     @objc func exportViewAsCSV(_ sender: Any?) {

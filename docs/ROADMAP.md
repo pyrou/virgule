@@ -78,6 +78,8 @@ This checklist is the source of truth for scope. Check an item only after it has
 
 ## 6. SQL query bar
 
+- [x] Use `$file` in the opening query and `$row_id` for the stable source row identifier (Xcode build and SQL presentation/highlighting regression tests).
+
 - [x] Support `$file` as a portable alias for the opened CSV, with completion and syntax highlighting (Xcode build and SQL presentation/completion regression tests).
 
 - [x] Keep the active SQL readily available from the table view.

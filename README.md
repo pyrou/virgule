@@ -37,7 +37,15 @@ Local temporary cache for each source file (SQLite)
 
 Rust reads the CSV as a stream and imports it into a cached SQLite database in Virgule’s macOS cache directory; it never writes next to or modifies the source file. The grid receives only result pages, so it never creates cells for off-screen rows. The imported table is named `csv`. In the SQL editor, `$file` is a portable alias for the currently opened CSV: `SELECT * FROM $file` works with any source filename. The full source path remains supported; literals and comments are preserved.
 
-The query bar always displays the exact SQL behind the current view. Sort and filter actions produce readable SQL. Only `SELECT`, `WITH`, and `EXPLAIN` queries are allowed; any statement that can modify SQLite is rejected.
+Opening a file initializes the editor with:
+
+```sql
+SELECT *
+FROM $file
+ORDER BY $row_id
+```
+
+`$row_id` refers to the stable source row identifier and preserves the original row order. The query bar always displays the exact SQL behind the current view. Sort and filter actions produce readable SQL. Only `SELECT`, `WITH`, and `EXPLAIN` queries are allowed; any statement that can modify SQLite is rejected.
 
 ## Supported CSV behavior
 

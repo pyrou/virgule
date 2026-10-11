@@ -181,13 +181,22 @@ struct virguleTests {
 
     @Test func sqlEditorHighlightsFriendlySourceAndRowIdentifiers() {
         let path = "/Users/michael/Downloads/myfile.csv"
-        let sql = "SELECT * FROM \(path) ORDER BY $virgule_row_id"
+        let sql = "SELECT * FROM \(path) ORDER BY $row_id"
         let highlighted = SQLQueryBar.highlightedText(for: sql, sourcePath: path)
         let pathRange = (sql as NSString).range(of: path)
-        let rowIDRange = (sql as NSString).range(of: "$virgule_row_id")
+        let rowIDRange = (sql as NSString).range(of: "$row_id")
 
         #expect(highlighted.attribute(.foregroundColor, at: pathRange.location, effectiveRange: nil) as? NSColor == .systemTeal)
         #expect(highlighted.attribute(.foregroundColor, at: rowIDRange.location, effectiveRange: nil) as? NSColor == .tertiaryLabelColor)
+    }
+
+    @Test func defaultSQLUsesPortableSourceAndShortRowIdentifier() {
+        #expect(SQLQueryPresentation.sourceQuery == "SELECT *\nFROM $file")
+        let query = SQLQueryPresentation.sourceQuery + "\nORDER BY " + SQLQueryPresentation.internalRowID
+        let presentation = SQLQueryPresentation(sourcePath: "/tmp/example.csv")
+        #expect(query == "SELECT *\nFROM $file\nORDER BY $row_id")
+        #expect(presentation.engineSQL(for: query) == "SELECT *\nFROM csv\nORDER BY \"__virgule_row_id\"")
+        #expect(presentation.engineSQL(for: "SELECT '$row_id', $row_id_extra FROM $file -- $row_id") == "SELECT '$row_id', $row_id_extra FROM csv -- $row_id")
     }
 
     @Test func portableCSVSourceWorksAcrossFilesAndPreservesOtherTokens() {

@@ -7,7 +7,8 @@ struct SQLQueryPresentation {
     let sourcePath: String
 
     static let portableSource = "$file"
-    static let internalRowID = "$virgule_row_id"
+    static let internalRowID = "$row_id"
+    static let sourceQuery = "SELECT *\nFROM \(portableSource)"
     private static let engineSource = "csv"
     private static let engineRowID = "\"__virgule_row_id\""
 
@@ -67,7 +68,7 @@ struct SQLQueryPresentation {
                 if let replacement = replacements.first(where: { candidate in
                     let token = Array(candidate.0.unicodeScalars)
                     guard !token.isEmpty, index + token.count <= scalars.count else { return false }
-                    if candidate.0 == Self.portableSource {
+                    if candidate.0 == Self.portableSource || candidate.0 == Self.internalRowID {
                         let identifierCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_.$/"))
                         if index > 0, identifierCharacters.contains(scalars[index - 1]) { return false }
                         let end = index + token.count
@@ -451,7 +452,7 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         apply(#"(?<![\w.$/])\$file(?![\w.$/])"#, .systemTeal)
         // The muted colour separates Virgule's stable ordering key from source
         // columns, which retain the normal identifier/string appearance.
-        apply("\\$virgule_row_id\\b", .tertiaryLabelColor)
+        apply("\\$row_id\\b", .tertiaryLabelColor)
         return result
     }
 
