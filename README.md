@@ -30,7 +30,7 @@ ORDER BY $row_id
 
 `$row_id` is the stable source row identifier. You can use SQLite expressions, aggregates, and calculated columns to explore your data.
 
-For example, take an orders CSV with `country`, `city`, `first_name`, `last_name`, `quantity`, `unit_price`, and `status` columns. Combine columns with `concat_ws`, calculate revenue in a common table expression, then rank markets by paid sales:
+Try the included [sample orders CSV](docs/sample.csv): 1,500 rows with `country`, `city`, `first_name`, `last_name`, `quantity`, `unit_price`, and `status` columns, including unpaid orders and low-revenue markets. Combine columns with `concat_ws`, calculate revenue in a common table expression, then rank markets by paid sales:
 
 ```sql
 WITH orders AS (

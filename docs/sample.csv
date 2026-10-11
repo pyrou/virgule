@@ -1,0 +1,1501 @@
+country,city,first_name,last_name,quantity,unit_price,status
+Spain,Madrid,Gabriel,Evans,1,92.22,paid
+Belgium,Namur,Arthur,Muller,1,2.42,paid
+Canada,Montreal,Chloe,Moreau,2,76.8,refunded
+Denmark,Copenhagen,Oscar,Rossi,4,222.31,pending
+Italy,Rome,Sofia,Thomas,5,95.21,paid
+Portugal,Lisbon,Amelia,Clark,2,225.16,cancelled
+Italy,Rome,Arthur,Clark,4,187.3,refunded
+United States,San Francisco,Hugo,Muller,3,238.83,paid
+France,Marseille,Mia,Wilson,1,103.29,paid
+Portugal,Lisbon,Nina,Walker,2,237.73,paid
+Canada,Montreal,Arthur,Anderson,3,44.08,paid
+Spain,Barcelona,Nina,Walker,2,133.34,paid
+France,Bordeaux,Liam,Brown,4,248.53,cancelled
+Italy,Milan,Elena,Walker,1,179.69,cancelled
+Portugal,Faro,Elena,Thomas,2,103.99,pending
+United States,San Francisco,Oscar,Evans,5,115.55,paid
+Denmark,Copenhagen,Noah,Costa,2,166.55,paid
+Italy,Milan,Alice,Martin,5,214.2,paid
+United States,San Francisco,Lucas,Wilson,5,117.28,paid
+Germany,Berlin,Louis,Martin,1,154.13,paid
+Italy,Rome,Liam,Muller,4,133.91,paid
+France,Paris,Nina,Laurent,4,142.72,pending
+Portugal,Faro,Gabriel,Costa,1,0.64,paid
+Spain,Barcelona,Hugo,Rossi,1,41.71,paid
+Canada,Montreal,Oscar,Taylor,6,234.95,paid
+United States,New York,Amelia,Evans,1,82.0,paid
+Germany,Berlin,Adam,Wilson,3,121.03,paid
+Portugal,Lisbon,Zoe,Bernard,4,57.97,cancelled
+United Kingdom,London,Mia,Lopez,4,178.02,paid
+Belgium,Brussels,Gabriel,Martin,3,72.85,pending
+Denmark,Copenhagen,Liam,Laurent,3,160.86,pending
+Italy,Rome,Nina,Laurent,3,114.15,paid
+Japan,Tokyo,Nina,Evans,6,168.67,paid
+United Kingdom,London,Alice,Evans,5,94.84,paid
+Portugal,Lisbon,Leo,Bernard,5,216.75,refunded
+United Kingdom,London,Louis,Lefebvre,3,87.26,paid
+Portugal,Lisbon,Alice,Lefebvre,6,77.66,paid
+Belgium,Namur,Amelia,Brown,4,173.68,pending
+France,Bordeaux,Adam,Walker,4,154.44,paid
+Denmark,Copenhagen,Liam,Anderson,5,119.23,paid
+Italy,Milan,Lucas,Wilson,6,199.49,paid
+Canada,Montreal,Mia,Costa,2,108.29,paid
+Switzerland,Zurich,Adam,Moreau,1,115.08,paid
+Netherlands,Amsterdam,Amelia,Bernard,4,217.06,paid
+Spain,Madrid,Hugo,Rossi,2,202.66,paid
+Italy,Rome,Leo,Laurent,1,88.69,paid
+Sweden,Stockholm,Olivia,Taylor,5,154.79,paid
+United Kingdom,London,Mia,Anderson,5,86.71,paid
+France,Paris,Lucas,Garcia,1,139.23,paid
+Sweden,Stockholm,Elena,Lopez,4,177.66,paid
+Belgium,Brussels,Lucas,Lefebvre,5,53.17,paid
+Japan,Tokyo,Arthur,Martin,1,219.61,paid
+France,Lyon,Lucas,Anderson,4,86.67,paid
+Portugal,Faro,Amelia,Costa,1,0.94,paid
+Portugal,Faro,Emma,Lefebvre,5,42.69,cancelled
+Denmark,Copenhagen,Lucas,Muller,4,114.33,paid
+Switzerland,Zurich,Louis,Laurent,5,104.6,paid
+Germany,Berlin,Alice,Laurent,2,164.88,paid
+Germany,Munich,Amelia,Thomas,1,158.86,paid
+United States,New York,Mia,Bernard,5,114.54,cancelled
+Spain,Barcelona,Zoe,Bernard,6,56.16,paid
+United Kingdom,Manchester,Nina,Muller,6,108.38,paid
+France,Marseille,Sofia,Evans,6,54.92,paid
+Spain,Madrid,Nina,Taylor,5,60.04,paid
+Spain,Madrid,Elena,Brown,3,30.92,paid
+Netherlands,Amsterdam,Chloe,Lefebvre,2,136.67,cancelled
+Italy,Milan,Hugo,Laurent,5,16.55,refunded
+France,Lyon,Amelia,Garcia,2,28.17,cancelled
+United States,San Francisco,Sofia,Wilson,2,27.59,paid
+Canada,Montreal,Leo,Taylor,5,79.83,refunded
+Switzerland,Zurich,Hugo,Brown,3,107.89,paid
+Germany,Munich,Sofia,Rossi,1,56.61,cancelled
+France,Paris,Olivia,Wilson,6,45.73,paid
+France,Bordeaux,Sofia,Costa,4,138.1,paid
+Switzerland,Zurich,Oscar,Clark,4,151.61,paid
+France,Lyon,Hugo,Lopez,2,26.83,paid
+Japan,Tokyo,Gabriel,Costa,4,234.73,paid
+Belgium,Brussels,Alice,Garcia,5,175.34,paid
+United Kingdom,London,Leo,Lefebvre,5,23.7,paid
+Portugal,Faro,Oscar,Evans,1,0.98,paid
+Belgium,Namur,Elena,Dubois,1,0.82,paid
+Portugal,Faro,Zoe,Clark,1,36.88,cancelled
+United States,New York,Mia,Taylor,3,152.81,paid
+Spain,Madrid,Mia,Wilson,6,105.29,paid
+France,Marseille,Oscar,Garcia,5,118.62,paid
+France,Annecy,Louis,Thomas,1,2.27,paid
+United Kingdom,London,Alice,Muller,4,161.35,paid
+Italy,Milan,Amelia,Evans,3,218.9,pending
+Spain,Madrid,Alice,Lopez,1,192.62,paid
+Sweden,Stockholm,Elena,Costa,6,77.23,paid
+Germany,Berlin,Lucas,Silva,2,154.46,paid
+France,Bordeaux,Sofia,Lopez,5,108.57,paid
+Netherlands,Amsterdam,Alice,Rossi,3,64.46,paid
+Japan,Tokyo,Elena,Laurent,6,120.03,pending
+Germany,Berlin,Lucas,Lefebvre,3,17.2,paid
+France,Bordeaux,Elena,Evans,1,100.8,paid
+Belgium,Brussels,Sofia,Lopez,6,191.77,cancelled
+Portugal,Faro,Liam,Walker,4,136.29,refunded
+Japan,Tokyo,Louis,Thomas,4,200.71,paid
+Belgium,Brussels,Oscar,Wilson,1,109.92,paid
+United Kingdom,Manchester,Adam,Brown,6,135.54,paid
+Italy,Milan,Alice,Laurent,2,108.43,paid
+Italy,Rome,Elena,Walker,4,155.86,paid
+France,Lyon,Elena,Martin,6,137.36,paid
+Belgium,Brussels,Olivia,Silva,5,180.33,paid
+Spain,Madrid,Leo,Lopez,1,130.46,paid
+Switzerland,Zurich,Zoe,Rossi,5,234.07,paid
+France,Paris,Oscar,Clark,5,51.15,paid
+Italy,Rome,Elena,Walker,1,78.97,paid
+Italy,Rome,Amelia,Laurent,5,106.18,paid
+Denmark,Copenhagen,Arthur,Clark,2,123.58,paid
+United States,New York,Alice,Wilson,2,75.69,cancelled
+Japan,Tokyo,Louis,Taylor,4,71.48,pending
+France,Marseille,Alice,Laurent,1,155.28,paid
+Germany,Berlin,Amelia,Lopez,3,132.52,paid
+France,Annecy,Alice,Anderson,1,1.51,paid
+Italy,Milan,Louis,Brown,6,69.13,refunded
+Belgium,Brussels,Mia,Evans,4,65.6,paid
+United Kingdom,Manchester,Nina,Brown,5,171.2,paid
+United Kingdom,Manchester,Lucas,Costa,4,111.72,paid
+United States,San Francisco,Hugo,Clark,2,215.25,cancelled
+Japan,Tokyo,Louis,Wilson,1,182.28,paid
+Belgium,Brussels,Sofia,Costa,4,96.37,paid
+United States,San Francisco,Louis,Martin,2,222.31,pending
+Belgium,Brussels,Louis,Dubois,5,207.81,refunded
+Denmark,Copenhagen,Chloe,Costa,3,169.52,pending
+France,Paris,Arthur,Taylor,2,80.41,paid
+Denmark,Copenhagen,Oscar,Evans,6,38.49,paid
+Italy,Milan,Olivia,Lefebvre,2,124.64,paid
+Italy,Siena,Hugo,Taylor,1,77.12,pending
+Netherlands,Amsterdam,Hugo,Taylor,6,142.03,paid
+Denmark,Copenhagen,Olivia,Rossi,2,199.64,paid
+Netherlands,Amsterdam,Lucas,Evans,3,48.94,paid
+United States,New York,Noah,Martin,1,110.59,paid
+Portugal,Lisbon,Oscar,Evans,4,90.66,paid
+France,Lyon,Liam,Silva,1,20.07,paid
+Sweden,Stockholm,Sofia,Dubois,5,92.55,paid
+Sweden,Stockholm,Oscar,Wilson,4,213.42,paid
+Italy,Rome,Lucas,Wilson,5,203.11,paid
+France,Annecy,Louis,Muller,1,1.87,paid
+Spain,Barcelona,Amelia,Clark,4,207.76,refunded
+Denmark,Copenhagen,Emma,Anderson,1,81.3,pending
+France,Paris,Arthur,Martin,6,118.67,paid
+Portugal,Lisbon,Adam,Laurent,4,175.65,paid
+France,Annecy,Arthur,Taylor,1,1.98,paid
+Belgium,Brussels,Lucas,Lefebvre,4,160.82,paid
+Italy,Rome,Amelia,Walker,3,164.98,paid
+Germany,Berlin,Adam,Walker,5,128.38,pending
+United States,San Francisco,Sofia,Dubois,1,121.94,paid
+Denmark,Copenhagen,Sofia,Dubois,3,176.81,pending
+Sweden,Stockholm,Adam,Clark,1,178.95,refunded
+United Kingdom,London,Arthur,Brown,2,129.64,cancelled
+Switzerland,Zurich,Gabriel,Anderson,6,160.28,paid
+Germany,Munich,Elena,Costa,2,180.16,paid
+Italy,Milan,Liam,Anderson,4,194.85,paid
+Italy,Rome,Lucas,Rossi,5,85.64,paid
+Denmark,Copenhagen,Lucas,Dubois,2,209.78,paid
+Belgium,Namur,Arthur,Evans,1,1.79,paid
+United States,San Francisco,Louis,Garcia,2,126.38,paid
+France,Bordeaux,Hugo,Moreau,2,36.1,paid
+Belgium,Brussels,Oscar,Wilson,5,77.47,refunded
+Germany,Berlin,Adam,Brown,4,140.92,paid
+Spain,Madrid,Nina,Garcia,1,172.05,paid
+Japan,Tokyo,Gabriel,Thomas,4,216.44,paid
+France,Annecy,Leo,Wilson,1,2.35,paid
+Netherlands,Amsterdam,Zoe,Laurent,2,193.01,pending
+France,Annecy,Amelia,Brown,1,2.02,paid
+Italy,Rome,Nina,Martin,2,121.61,refunded
+France,Paris,Emma,Garcia,6,105.4,paid
+Switzerland,Zurich,Elena,Lopez,5,25.58,paid
+France,Marseille,Zoe,Muller,4,91.13,paid
+Spain,Barcelona,Olivia,Lopez,1,98.45,paid
+Germany,Berlin,Louis,Bernard,1,124.27,refunded
+Belgium,Namur,Mia,Brown,1,0.89,paid
+Italy,Rome,Nina,Brown,3,104.72,paid
+Portugal,Lisbon,Lucas,Rossi,6,148.52,paid
+United States,San Francisco,Louis,Wilson,5,133.28,refunded
+Portugal,Faro,Sofia,Muller,1,1.4,paid
+Canada,Montreal,Emma,Lefebvre,5,110.21,cancelled
+Italy,Siena,Amelia,Clark,4,112.88,cancelled
+United States,San Francisco,Gabriel,Lefebvre,2,226.79,paid
+Germany,Munich,Nina,Wilson,1,82.11,paid
+Canada,Montreal,Chloe,Martin,1,151.67,paid
+France,Lyon,Sofia,Evans,6,196.18,refunded
+Germany,Berlin,Alice,Martin,3,154.7,paid
+Netherlands,Amsterdam,Adam,Wilson,5,195.84,paid
+Sweden,Stockholm,Sofia,Garcia,1,50.17,paid
+Germany,Munich,Olivia,Silva,5,93.16,paid
+Italy,Milan,Adam,Clark,4,107.12,paid
+Portugal,Lisbon,Leo,Silva,5,146.3,paid
+United Kingdom,London,Louis,Laurent,3,19.07,paid
+France,Marseille,Adam,Bernard,1,89.77,paid
+Germany,Munich,Louis,Evans,6,182.69,paid
+Sweden,Stockholm,Zoe,Laurent,2,184.62,paid
+Belgium,Namur,Hugo,Clark,4,178.78,pending
+Italy,Rome,Arthur,Thomas,6,175.87,refunded
+Japan,Tokyo,Noah,Laurent,6,184.79,paid
+Italy,Siena,Oscar,Costa,1,2.11,paid
+Germany,Munich,Olivia,Anderson,6,104.99,paid
+Switzerland,Zurich,Liam,Brown,1,201.93,paid
+France,Bordeaux,Noah,Lopez,4,100.84,refunded
+United States,New York,Chloe,Lefebvre,1,98.9,paid
+Canada,Montreal,Alice,Rossi,6,189.15,paid
+France,Annecy,Amelia,Muller,1,1.41,paid
+France,Bordeaux,Elena,Bernard,4,243.58,pending
+France,Annecy,Alice,Wilson,1,1.88,paid
+Canada,Montreal,Emma,Muller,4,183.21,paid
+France,Paris,Louis,Clark,5,71.11,cancelled
+United States,San Francisco,Noah,Martin,5,261.2,paid
+Belgium,Namur,Arthur,Dubois,1,0.75,paid
+Portugal,Lisbon,Olivia,Moreau,5,184.46,paid
+Italy,Rome,Liam,Dubois,5,56.92,paid
+Italy,Milan,Elena,Evans,1,108.11,paid
+Portugal,Faro,Louis,Thomas,1,0.99,paid
+France,Lyon,Lucas,Anderson,2,147.2,paid
+France,Lyon,Noah,Moreau,1,143.71,paid
+United Kingdom,Manchester,Mia,Wilson,6,77.98,paid
+Portugal,Lisbon,Amelia,Taylor,6,105.18,paid
+United States,New York,Louis,Laurent,2,42.17,paid
+United States,New York,Louis,Silva,5,71.51,paid
+France,Bordeaux,Chloe,Silva,3,149.25,paid
+France,Lyon,Chloe,Moreau,5,169.2,pending
+France,Annecy,Zoe,Brown,5,165.93,refunded
+United Kingdom,Manchester,Emma,Dubois,4,164.38,paid
+France,Lyon,Sofia,Brown,4,60.03,pending
+Denmark,Copenhagen,Olivia,Martin,1,64.65,paid
+United Kingdom,Manchester,Mia,Anderson,3,171.83,paid
+France,Lyon,Leo,Brown,2,52.85,paid
+Japan,Tokyo,Alice,Laurent,4,48.82,paid
+Switzerland,Zurich,Leo,Thomas,5,36.0,paid
+Italy,Rome,Hugo,Muller,5,17.61,paid
+France,Bordeaux,Nina,Thomas,6,153.62,paid
+Japan,Tokyo,Nina,Garcia,4,132.88,paid
+Germany,Berlin,Mia,Lefebvre,2,157.76,paid
+Germany,Munich,Elena,Moreau,3,207.05,cancelled
+Italy,Rome,Arthur,Lefebvre,2,91.81,cancelled
+United Kingdom,London,Lucas,Lefebvre,5,173.08,paid
+France,Bordeaux,Arthur,Garcia,2,36.61,paid
+Denmark,Copenhagen,Zoe,Martin,6,181.24,paid
+Italy,Rome,Liam,Wilson,1,43.04,paid
+France,Lyon,Hugo,Rossi,5,32.63,paid
+Spain,Madrid,Gabriel,Rossi,4,188.22,refunded
+Belgium,Brussels,Hugo,Thomas,5,58.68,paid
+Canada,Montreal,Alice,Bernard,6,219.39,paid
+United States,New York,Chloe,Clark,5,108.08,paid
+Denmark,Copenhagen,Mia,Anderson,1,92.74,paid
+France,Bordeaux,Mia,Costa,4,111.74,paid
+Denmark,Copenhagen,Oscar,Lefebvre,5,93.37,paid
+Switzerland,Zurich,Lucas,Lopez,4,197.41,pending
+Netherlands,Amsterdam,Lucas,Muller,6,46.71,paid
+Germany,Berlin,Adam,Evans,2,87.89,paid
+United States,San Francisco,Nina,Anderson,2,254.6,paid
+Portugal,Faro,Zoe,Walker,1,1.22,paid
+Portugal,Faro,Louis,Rossi,1,2.05,paid
+Germany,Munich,Alice,Taylor,1,41.53,paid
+Canada,Montreal,Hugo,Rossi,6,250.17,paid
+Italy,Milan,Louis,Clark,4,158.38,paid
+Denmark,Copenhagen,Leo,Thomas,1,68.66,paid
+Belgium,Brussels,Arthur,Garcia,5,144.07,paid
+Japan,Tokyo,Liam,Martin,2,187.3,paid
+United States,San Francisco,Louis,Evans,2,251.79,paid
+Sweden,Stockholm,Zoe,Lopez,3,142.39,paid
+Portugal,Faro,Elena,Anderson,1,1.33,paid
+Spain,Barcelona,Zoe,Wilson,1,31.23,paid
+Germany,Munich,Olivia,Lopez,1,59.21,paid
+Canada,Montreal,Mia,Bernard,5,142.92,cancelled
+United Kingdom,London,Chloe,Costa,1,123.91,paid
+United Kingdom,Manchester,Mia,Lefebvre,4,156.0,paid
+Japan,Tokyo,Amelia,Lopez,6,49.56,paid
+Switzerland,Zurich,Nina,Thomas,1,205.48,paid
+Spain,Barcelona,Zoe,Clark,6,108.56,refunded
+France,Marseille,Gabriel,Costa,6,57.17,paid
+Denmark,Copenhagen,Zoe,Lefebvre,2,149.37,paid
+France,Paris,Arthur,Garcia,5,74.44,paid
+France,Lyon,Nina,Walker,6,58.66,paid
+Netherlands,Amsterdam,Chloe,Evans,2,128.64,paid
+Germany,Berlin,Nina,Moreau,4,143.98,paid
+Sweden,Stockholm,Leo,Thomas,2,123.68,paid
+United Kingdom,Manchester,Chloe,Silva,6,138.1,paid
+Spain,Barcelona,Sofia,Dubois,2,167.67,paid
+Belgium,Namur,Zoe,Clark,1,2.12,paid
+Spain,Barcelona,Oscar,Lopez,4,158.61,paid
+France,Marseille,Arthur,Wilson,3,49.7,paid
+Japan,Tokyo,Nina,Silva,3,228.05,paid
+France,Lyon,Louis,Rossi,6,64.84,paid
+Spain,Madrid,Gabriel,Bernard,4,184.91,paid
+France,Paris,Chloe,Clark,6,46.66,pending
+Portugal,Lisbon,Chloe,Lefebvre,2,146.87,refunded
+Switzerland,Zurich,Chloe,Walker,5,159.36,paid
+France,Marseille,Noah,Garcia,4,143.88,pending
+Switzerland,Zurich,Arthur,Bernard,5,119.54,pending
+France,Paris,Mia,Garcia,5,105.98,paid
+Portugal,Lisbon,Hugo,Dubois,2,60.42,refunded
+Canada,Montreal,Sofia,Anderson,4,24.72,paid
+United States,San Francisco,Louis,Laurent,1,61.23,paid
+Italy,Rome,Adam,Dubois,4,152.26,paid
+France,Lyon,Hugo,Evans,5,84.26,cancelled
+Canada,Montreal,Gabriel,Silva,6,42.03,paid
+Belgium,Brussels,Mia,Dubois,4,168.17,paid
+Denmark,Copenhagen,Leo,Bernard,2,26.01,paid
+France,Marseille,Chloe,Moreau,6,45.49,paid
+France,Paris,Chloe,Bernard,1,43.23,paid
+Germany,Munich,Lucas,Bernard,2,68.86,pending
+Canada,Montreal,Louis,Brown,3,48.12,paid
+Portugal,Lisbon,Alice,Dubois,1,135.77,paid
+France,Lyon,Olivia,Taylor,3,55.98,paid
+Japan,Tokyo,Hugo,Lopez,6,243.35,paid
+United States,San Francisco,Louis,Bernard,5,148.26,cancelled
+Netherlands,Amsterdam,Lucas,Garcia,6,48.09,paid
+United Kingdom,Manchester,Liam,Thomas,6,99.77,paid
+Spain,Barcelona,Louis,Walker,1,112.3,paid
+France,Lyon,Liam,Garcia,6,77.18,paid
+Italy,Milan,Leo,Clark,5,61.07,paid
+Portugal,Lisbon,Sofia,Lefebvre,2,167.11,cancelled
+Canada,Montreal,Zoe,Lefebvre,5,37.57,paid
+Germany,Munich,Liam,Taylor,6,94.71,paid
+United States,New York,Noah,Garcia,3,59.48,paid
+Netherlands,Amsterdam,Zoe,Taylor,4,130.89,paid
+Italy,Rome,Louis,Thomas,1,41.39,paid
+Italy,Siena,Alice,Clark,3,125.26,pending
+Japan,Tokyo,Gabriel,Silva,3,245.46,paid
+Switzerland,Zurich,Zoe,Moreau,3,227.22,paid
+France,Lyon,Alice,Bernard,2,125.76,paid
+Spain,Barcelona,Gabriel,Lefebvre,5,45.27,paid
+Germany,Munich,Noah,Muller,6,138.65,paid
+Belgium,Namur,Lucas,Walker,4,216.23,cancelled
+Sweden,Stockholm,Mia,Brown,1,94.43,paid
+Belgium,Brussels,Oscar,Brown,2,115.13,pending
+Sweden,Stockholm,Emma,Anderson,4,234.67,paid
+Italy,Rome,Emma,Bernard,5,135.15,refunded
+Switzerland,Zurich,Leo,Dubois,2,85.88,paid
+Germany,Berlin,Noah,Evans,1,132.11,paid
+Germany,Munich,Chloe,Muller,3,146.91,paid
+France,Marseille,Emma,Lopez,4,30.38,paid
+Portugal,Faro,Noah,Lefebvre,3,173.51,cancelled
+Sweden,Stockholm,Zoe,Garcia,3,176.95,paid
+United Kingdom,London,Emma,Silva,4,240.88,cancelled
+Canada,Montreal,Emma,Muller,1,65.9,pending
+Spain,Madrid,Lucas,Evans,3,189.63,paid
+Canada,Montreal,Zoe,Evans,2,98.04,paid
+Sweden,Stockholm,Noah,Costa,6,223.08,paid
+Japan,Tokyo,Louis,Brown,4,186.89,paid
+Spain,Barcelona,Gabriel,Walker,3,77.4,paid
+France,Lyon,Zoe,Thomas,3,92.81,pending
+Spain,Madrid,Gabriel,Evans,6,104.91,paid
+France,Lyon,Olivia,Muller,1,236.98,pending
+Denmark,Copenhagen,Chloe,Bernard,1,108.65,pending
+Germany,Berlin,Olivia,Garcia,1,30.96,paid
+Canada,Montreal,Olivia,Brown,5,185.03,paid
+United Kingdom,London,Olivia,Thomas,1,162.79,paid
+Switzerland,Zurich,Olivia,Lefebvre,1,191.15,paid
+United States,New York,Amelia,Wilson,1,54.18,paid
+Netherlands,Amsterdam,Zoe,Brown,3,99.98,cancelled
+Sweden,Stockholm,Chloe,Muller,1,64.97,paid
+Germany,Berlin,Elena,Costa,6,113.65,pending
+Netherlands,Amsterdam,Gabriel,Walker,4,66.73,paid
+France,Marseille,Adam,Dubois,4,42.79,paid
+France,Paris,Chloe,Garcia,5,55.39,paid
+Spain,Barcelona,Zoe,Dubois,5,86.2,paid
+Italy,Siena,Adam,Walker,1,83.82,pending
+Italy,Rome,Adam,Costa,5,197.65,paid
+Denmark,Copenhagen,Liam,Taylor,5,215.08,paid
+United Kingdom,Manchester,Olivia,Silva,6,162.38,paid
+Germany,Berlin,Chloe,Walker,6,74.71,cancelled
+United States,New York,Liam,Muller,1,94.67,paid
+Japan,Tokyo,Arthur,Moreau,4,225.98,paid
+Portugal,Lisbon,Lucas,Walker,3,55.34,paid
+France,Lyon,Mia,Costa,4,50.8,paid
+United States,San Francisco,Olivia,Martin,2,169.1,pending
+France,Paris,Zoe,Garcia,1,120.32,paid
+Denmark,Copenhagen,Amelia,Moreau,6,211.69,paid
+Belgium,Brussels,Elena,Dubois,2,57.92,paid
+United Kingdom,London,Lucas,Costa,4,89.17,paid
+United Kingdom,London,Noah,Taylor,4,199.03,pending
+Netherlands,Amsterdam,Arthur,Dubois,6,195.05,paid
+Germany,Munich,Adam,Bernard,3,46.56,cancelled
+France,Lyon,Emma,Anderson,6,153.78,paid
+France,Paris,Mia,Costa,2,87.14,paid
+Italy,Rome,Alice,Brown,1,73.27,paid
+Germany,Berlin,Alice,Martin,1,146.91,paid
+Denmark,Copenhagen,Sofia,Laurent,5,90.46,paid
+Portugal,Lisbon,Adam,Wilson,3,210.48,paid
+Portugal,Lisbon,Oscar,Garcia,5,106.29,paid
+France,Bordeaux,Zoe,Lefebvre,6,17.08,paid
+Germany,Munich,Amelia,Garcia,5,132.74,paid
+Switzerland,Zurich,Elena,Moreau,4,147.06,paid
+Italy,Siena,Liam,Anderson,1,2.09,paid
+Canada,Montreal,Elena,Walker,6,89.2,cancelled
+Portugal,Faro,Elena,Brown,1,1.25,paid
+France,Lyon,Emma,Moreau,3,154.1,paid
+Switzerland,Zurich,Emma,Rossi,6,233.73,refunded
+United Kingdom,Manchester,Zoe,Walker,2,107.37,cancelled
+Germany,Berlin,Alice,Dubois,4,204.33,refunded
+Sweden,Stockholm,Hugo,Thomas,1,138.29,paid
+Japan,Tokyo,Amelia,Evans,5,153.79,cancelled
+Spain,Barcelona,Louis,Wilson,2,165.47,cancelled
+Italy,Milan,Chloe,Bernard,4,57.27,refunded
+France,Paris,Liam,Brown,2,104.86,paid
+France,Bordeaux,Chloe,Lefebvre,6,15.88,paid
+Switzerland,Zurich,Nina,Brown,3,163.19,paid
+Denmark,Copenhagen,Elena,Taylor,6,249.3,paid
+Netherlands,Amsterdam,Leo,Evans,6,165.8,paid
+Sweden,Stockholm,Emma,Taylor,1,125.46,paid
+Japan,Tokyo,Liam,Anderson,1,125.07,paid
+France,Marseille,Leo,Thomas,1,142.83,paid
+Netherlands,Amsterdam,Liam,Walker,5,199.08,paid
+Spain,Barcelona,Amelia,Anderson,6,186.14,cancelled
+Germany,Munich,Olivia,Thomas,5,107.36,paid
+Denmark,Copenhagen,Alice,Rossi,6,47.57,refunded
+France,Bordeaux,Elena,Brown,4,154.8,paid
+United States,New York,Arthur,Bernard,6,85.86,paid
+Canada,Montreal,Liam,Moreau,6,83.09,paid
+Sweden,Stockholm,Amelia,Bernard,1,148.1,paid
+Germany,Munich,Nina,Muller,3,122.75,paid
+United States,San Francisco,Zoe,Bernard,1,101.09,refunded
+France,Bordeaux,Noah,Wilson,2,238.0,cancelled
+France,Annecy,Adam,Martin,1,1.55,paid
+Italy,Milan,Hugo,Laurent,6,56.74,paid
+Belgium,Brussels,Olivia,Wilson,1,103.17,paid
+Spain,Madrid,Lucas,Thomas,2,121.87,cancelled
+Spain,Barcelona,Olivia,Garcia,3,92.21,paid
+France,Bordeaux,Mia,Anderson,5,164.75,paid
+Italy,Milan,Zoe,Thomas,1,204.2,paid
+Germany,Munich,Emma,Silva,2,161.07,paid
+United States,San Francisco,Arthur,Silva,3,145.23,paid
+Italy,Rome,Arthur,Muller,1,92.24,paid
+Germany,Munich,Liam,Rossi,5,228.32,cancelled
+United Kingdom,Manchester,Chloe,Martin,3,106.65,paid
+Spain,Barcelona,Hugo,Walker,3,139.1,paid
+France,Lyon,Olivia,Dubois,5,17.91,paid
+Canada,Montreal,Leo,Dubois,1,114.61,paid
+Italy,Rome,Liam,Lefebvre,5,54.41,paid
+France,Paris,Liam,Taylor,1,131.15,paid
+Germany,Berlin,Nina,Costa,2,182.31,paid
+Portugal,Faro,Noah,Anderson,3,212.29,pending
+France,Marseille,Sofia,Laurent,3,131.16,paid
+Netherlands,Amsterdam,Sofia,Laurent,2,196.95,paid
+Portugal,Lisbon,Noah,Brown,3,99.6,paid
+France,Paris,Lucas,Dubois,5,85.04,paid
+France,Marseille,Noah,Walker,6,43.34,paid
+Switzerland,Zurich,Chloe,Martin,6,150.9,paid
+Denmark,Copenhagen,Arthur,Laurent,1,39.14,paid
+France,Paris,Adam,Thomas,1,68.95,paid
+Germany,Munich,Amelia,Dubois,4,27.26,paid
+France,Annecy,Gabriel,Brown,1,41.83,cancelled
+Germany,Berlin,Liam,Costa,3,95.75,paid
+Japan,Tokyo,Alice,Garcia,6,104.82,refunded
+Switzerland,Zurich,Amelia,Martin,1,173.41,pending
+Sweden,Stockholm,Sofia,Rossi,5,28.67,refunded
+Netherlands,Amsterdam,Chloe,Moreau,1,158.26,paid
+Spain,Madrid,Gabriel,Anderson,6,159.76,paid
+Sweden,Stockholm,Leo,Silva,4,107.45,pending
+Italy,Siena,Noah,Muller,1,2.07,paid
+Germany,Berlin,Mia,Wilson,2,146.13,paid
+Sweden,Stockholm,Liam,Bernard,2,29.13,cancelled
+Spain,Madrid,Lucas,Dubois,3,225.84,cancelled
+Italy,Rome,Gabriel,Silva,5,158.3,paid
+Germany,Munich,Adam,Muller,4,49.78,cancelled
+Belgium,Namur,Zoe,Bernard,6,119.05,refunded
+Portugal,Lisbon,Noah,Lopez,6,47.34,paid
+France,Annecy,Emma,Moreau,1,0.79,paid
+France,Marseille,Arthur,Laurent,4,84.11,paid
+Germany,Munich,Hugo,Costa,6,71.1,paid
+Spain,Barcelona,Nina,Clark,4,23.75,paid
+Portugal,Lisbon,Noah,Taylor,3,212.21,paid
+Portugal,Lisbon,Liam,Evans,3,95.38,paid
+Germany,Berlin,Alice,Garcia,2,63.24,paid
+Spain,Madrid,Olivia,Clark,2,152.6,paid
+Italy,Siena,Noah,Anderson,1,2.44,paid
+Germany,Berlin,Louis,Lopez,1,155.25,paid
+Italy,Siena,Sofia,Lopez,1,2.17,paid
+Italy,Milan,Adam,Costa,3,33.94,paid
+United States,New York,Liam,Moreau,5,118.33,paid
+United States,New York,Emma,Silva,5,66.91,paid
+Italy,Milan,Mia,Anderson,1,165.39,paid
+Spain,Madrid,Elena,Wilson,6,78.33,paid
+United States,New York,Lucas,Anderson,4,36.65,paid
+Belgium,Brussels,Chloe,Garcia,6,208.36,paid
+Italy,Rome,Noah,Lopez,2,190.14,paid
+Spain,Madrid,Elena,Moreau,5,103.95,paid
+France,Lyon,Zoe,Taylor,5,103.32,paid
+Germany,Munich,Chloe,Dubois,5,144.19,paid
+Japan,Tokyo,Mia,Muller,6,189.59,cancelled
+United Kingdom,London,Louis,Taylor,6,40.17,paid
+United States,New York,Chloe,Laurent,4,231.11,paid
+United Kingdom,Manchester,Hugo,Thomas,4,176.14,paid
+Italy,Milan,Gabriel,Muller,1,18.27,paid
+United Kingdom,Manchester,Nina,Muller,6,84.5,paid
+Spain,Madrid,Oscar,Bernard,6,18.24,paid
+Italy,Rome,Amelia,Laurent,5,90.36,paid
+Belgium,Namur,Lucas,Brown,1,1.07,paid
+Denmark,Copenhagen,Zoe,Brown,2,43.3,paid
+France,Marseille,Sofia,Martin,5,38.01,paid
+Japan,Tokyo,Oscar,Evans,1,44.92,paid
+United Kingdom,London,Amelia,Rossi,6,53.66,paid
+United States,New York,Nina,Wilson,3,123.33,paid
+Belgium,Brussels,Adam,Evans,5,134.88,paid
+Sweden,Stockholm,Olivia,Moreau,3,133.01,refunded
+Belgium,Namur,Olivia,Rossi,1,1.14,paid
+France,Marseille,Mia,Moreau,3,47.66,paid
+Canada,Montreal,Oscar,Martin,3,206.69,paid
+Netherlands,Amsterdam,Lucas,Martin,1,151.55,pending
+Denmark,Copenhagen,Amelia,Silva,4,81.86,paid
+Portugal,Faro,Olivia,Walker,4,59.62,refunded
+United Kingdom,London,Olivia,Taylor,3,145.75,paid
+Portugal,Lisbon,Alice,Lefebvre,2,133.32,paid
+United Kingdom,London,Arthur,Rossi,3,187.38,refunded
+Belgium,Brussels,Nina,Lefebvre,2,227.26,paid
+Sweden,Stockholm,Oscar,Dubois,6,195.66,paid
+Denmark,Copenhagen,Leo,Clark,4,141.82,pending
+United States,San Francisco,Olivia,Muller,1,113.05,paid
+United Kingdom,London,Chloe,Taylor,4,20.92,paid
+Italy,Rome,Chloe,Thomas,4,64.99,paid
+Spain,Barcelona,Oscar,Clark,4,198.28,paid
+Sweden,Stockholm,Noah,Lefebvre,6,105.55,paid
+Spain,Barcelona,Arthur,Bernard,2,135.85,paid
+Spain,Madrid,Noah,Costa,5,171.76,paid
+Spain,Madrid,Olivia,Costa,3,27.89,paid
+France,Paris,Elena,Moreau,6,58.6,pending
+Switzerland,Zurich,Alice,Dubois,5,212.05,cancelled
+Italy,Siena,Noah,Moreau,1,1.01,paid
+Canada,Montreal,Lucas,Walker,6,213.61,paid
+France,Paris,Lucas,Taylor,1,62.04,paid
+Spain,Madrid,Louis,Costa,4,36.04,paid
+France,Paris,Arthur,Lopez,2,78.48,paid
+Netherlands,Amsterdam,Elena,Taylor,4,79.06,paid
+United Kingdom,London,Arthur,Evans,4,22.69,paid
+Spain,Madrid,Gabriel,Dubois,1,149.43,paid
+Germany,Berlin,Oscar,Brown,5,104.52,paid
+United Kingdom,Manchester,Mia,Silva,5,133.61,paid
+United Kingdom,Manchester,Alice,Garcia,4,148.94,paid
+Spain,Madrid,Hugo,Wilson,6,87.73,paid
+Switzerland,Zurich,Oscar,Anderson,6,150.59,paid
+United Kingdom,Manchester,Lucas,Moreau,5,77.16,paid
+Spain,Barcelona,Nina,Garcia,6,201.76,paid
+France,Annecy,Elena,Muller,1,2.19,paid
+Italy,Milan,Alice,Costa,4,71.59,paid
+Switzerland,Zurich,Leo,Silva,4,187.84,paid
+Italy,Rome,Zoe,Laurent,2,119.45,paid
+Canada,Montreal,Nina,Garcia,6,132.65,pending
+United States,New York,Leo,Dubois,2,191.79,paid
+Italy,Milan,Hugo,Walker,6,183.39,paid
+United Kingdom,London,Liam,Clark,1,49.16,refunded
+Belgium,Namur,Alice,Muller,1,1.85,paid
+Germany,Berlin,Oscar,Wilson,4,63.4,paid
+Japan,Tokyo,Noah,Bernard,6,78.56,paid
+Germany,Munich,Sofia,Costa,1,77.81,paid
+France,Marseille,Gabriel,Laurent,2,70.97,paid
+France,Marseille,Olivia,Laurent,6,45.63,pending
+Japan,Tokyo,Olivia,Wilson,2,56.98,refunded
+Canada,Montreal,Liam,Rossi,3,118.3,pending
+Denmark,Copenhagen,Louis,Taylor,1,140.87,paid
+United Kingdom,London,Sofia,Martin,5,194.87,refunded
+United Kingdom,Manchester,Nina,Clark,6,143.33,paid
+France,Annecy,Leo,Rossi,1,2.01,paid
+Portugal,Faro,Nina,Taylor,1,2.32,paid
+France,Bordeaux,Elena,Walker,5,62.89,paid
+France,Paris,Hugo,Laurent,3,17.15,cancelled
+Sweden,Stockholm,Sofia,Laurent,4,175.14,pending
+United States,San Francisco,Noah,Taylor,2,92.24,paid
+Denmark,Copenhagen,Louis,Evans,3,227.08,cancelled
+Netherlands,Amsterdam,Gabriel,Lopez,5,119.49,paid
+Spain,Barcelona,Emma,Anderson,4,115.21,paid
+France,Bordeaux,Adam,Lopez,3,98.46,paid
+Germany,Munich,Nina,Lefebvre,5,188.98,paid
+France,Annecy,Liam,Costa,1,121.13,pending
+Denmark,Copenhagen,Nina,Evans,3,113.06,paid
+Spain,Barcelona,Oscar,Clark,4,162.42,paid
+United Kingdom,London,Hugo,Garcia,4,71.96,paid
+Portugal,Lisbon,Lucas,Garcia,3,155.6,refunded
+Sweden,Stockholm,Olivia,Walker,5,158.2,paid
+United States,New York,Sofia,Wilson,5,76.24,refunded
+France,Lyon,Lucas,Costa,5,107.97,cancelled
+Switzerland,Zurich,Elena,Dubois,3,234.17,paid
+Canada,Montreal,Leo,Evans,1,136.07,paid
+Sweden,Stockholm,Noah,Brown,6,69.29,cancelled
+United States,New York,Amelia,Dubois,2,192.62,paid
+United Kingdom,London,Olivia,Anderson,2,42.75,paid
+Spain,Madrid,Emma,Silva,1,172.52,paid
+United States,San Francisco,Chloe,Silva,4,158.7,cancelled
+United States,New York,Sofia,Anderson,6,88.3,paid
+France,Annecy,Noah,Silva,4,218.69,pending
+France,Annecy,Louis,Taylor,1,1.05,paid
+France,Bordeaux,Noah,Muller,5,61.63,paid
+United Kingdom,London,Alice,Laurent,6,62.55,paid
+France,Annecy,Alice,Dubois,1,1.33,paid
+United Kingdom,London,Noah,Rossi,6,49.0,paid
+Netherlands,Amsterdam,Leo,Taylor,2,188.33,pending
+Germany,Berlin,Noah,Lopez,3,169.55,paid
+Spain,Barcelona,Olivia,Silva,6,72.48,paid
+United States,New York,Chloe,Garcia,1,53.07,pending
+Sweden,Stockholm,Emma,Clark,2,84.57,paid
+Canada,Montreal,Gabriel,Lefebvre,2,140.76,paid
+United Kingdom,London,Nina,Anderson,2,33.12,pending
+Spain,Barcelona,Zoe,Lopez,5,138.54,paid
+Canada,Montreal,Amelia,Taylor,1,23.14,paid
+United States,New York,Olivia,Clark,6,242.25,paid
+Netherlands,Amsterdam,Liam,Dubois,5,222.65,paid
+Italy,Milan,Olivia,Clark,4,149.08,paid
+Germany,Munich,Sofia,Clark,2,193.07,pending
+United States,New York,Emma,Lopez,1,88.95,paid
+Netherlands,Amsterdam,Zoe,Lefebvre,6,103.32,paid
+United States,New York,Gabriel,Walker,6,146.16,pending
+Canada,Montreal,Zoe,Muller,2,36.1,paid
+Belgium,Namur,Oscar,Martin,1,1.61,paid
+United States,San Francisco,Mia,Bernard,6,191.5,paid
+United Kingdom,London,Mia,Costa,5,96.43,paid
+United Kingdom,Manchester,Louis,Taylor,6,24.92,paid
+Germany,Munich,Sofia,Anderson,5,42.7,paid
+Japan,Tokyo,Gabriel,Brown,2,195.56,paid
+France,Paris,Oscar,Evans,5,78.82,paid
+France,Annecy,Adam,Brown,2,201.23,refunded
+Portugal,Lisbon,Zoe,Laurent,3,216.5,paid
+France,Annecy,Liam,Clark,1,2.13,paid
+Canada,Montreal,Chloe,Moreau,6,28.71,paid
+Switzerland,Zurich,Adam,Evans,2,190.77,paid
+France,Bordeaux,Chloe,Anderson,5,102.64,paid
+France,Marseille,Olivia,Taylor,1,104.05,paid
+France,Lyon,Liam,Brown,1,73.97,paid
+Denmark,Copenhagen,Adam,Anderson,3,68.59,paid
+United Kingdom,London,Nina,Muller,6,81.11,paid
+Canada,Montreal,Lucas,Dubois,2,201.07,paid
+Portugal,Faro,Arthur,Moreau,1,0.68,paid
+Italy,Rome,Nina,Walker,3,178.86,paid
+Italy,Milan,Mia,Walker,6,71.34,paid
+United Kingdom,Manchester,Emma,Clark,6,97.7,cancelled
+France,Lyon,Adam,Taylor,3,36.75,paid
+United States,San Francisco,Elena,Martin,6,21.75,paid
+France,Bordeaux,Gabriel,Garcia,3,94.17,paid
+France,Marseille,Olivia,Lefebvre,6,124.95,paid
+France,Lyon,Adam,Martin,3,238.3,pending
+Italy,Milan,Leo,Lefebvre,6,169.57,paid
+France,Paris,Louis,Martin,5,41.43,paid
+Spain,Madrid,Leo,Taylor,3,38.04,paid
+Germany,Munich,Mia,Muller,3,36.7,paid
+Belgium,Namur,Sofia,Brown,1,0.86,paid
+Belgium,Brussels,Chloe,Taylor,2,183.01,cancelled
+Netherlands,Amsterdam,Sofia,Wilson,3,94.95,paid
+Switzerland,Zurich,Emma,Laurent,2,59.96,paid
+United States,New York,Arthur,Laurent,5,227.98,paid
+Netherlands,Amsterdam,Louis,Wilson,2,170.24,paid
+United Kingdom,Manchester,Elena,Moreau,5,242.77,refunded
+Switzerland,Zurich,Olivia,Lopez,6,125.98,paid
+Belgium,Brussels,Leo,Thomas,2,202.24,refunded
+Portugal,Lisbon,Hugo,Walker,5,43.13,paid
+United States,New York,Olivia,Laurent,1,92.22,paid
+Spain,Barcelona,Emma,Dubois,5,146.06,paid
+Switzerland,Zurich,Emma,Rossi,2,78.02,paid
+United Kingdom,Manchester,Alice,Brown,6,125.6,paid
+Portugal,Faro,Oscar,Lefebvre,1,1.59,paid
+Belgium,Namur,Olivia,Evans,3,100.96,cancelled
+France,Bordeaux,Noah,Evans,2,139.32,paid
+Canada,Montreal,Sofia,Costa,1,233.98,paid
+United Kingdom,Manchester,Leo,Thomas,6,177.51,refunded
+Spain,Barcelona,Leo,Evans,2,114.28,cancelled
+Belgium,Brussels,Mia,Brown,2,35.72,paid
+France,Lyon,Alice,Wilson,3,68.17,paid
+France,Marseille,Oscar,Lopez,6,102.8,paid
+France,Paris,Amelia,Bernard,2,43.87,paid
+France,Paris,Mia,Martin,2,115.32,paid
+Portugal,Faro,Alice,Anderson,1,1.67,paid
+United States,San Francisco,Adam,Brown,4,55.77,paid
+Sweden,Stockholm,Liam,Moreau,5,83.41,paid
+France,Marseille,Emma,Muller,5,123.47,paid
+Belgium,Brussels,Emma,Taylor,1,45.05,refunded
+Netherlands,Amsterdam,Louis,Thomas,1,197.81,paid
+France,Annecy,Arthur,Silva,1,1.92,paid
+France,Bordeaux,Mia,Clark,6,93.22,paid
+France,Bordeaux,Lucas,Bernard,3,63.27,paid
+France,Paris,Hugo,Walker,2,51.23,paid
+Italy,Milan,Sofia,Lefebvre,1,25.56,paid
+United Kingdom,London,Zoe,Silva,1,160.23,paid
+Spain,Madrid,Liam,Silva,3,38.53,paid
+France,Paris,Hugo,Rossi,3,113.76,refunded
+Belgium,Brussels,Gabriel,Anderson,1,44.38,cancelled
+Germany,Munich,Oscar,Costa,1,71.46,paid
+Canada,Montreal,Arthur,Thomas,1,166.5,paid
+Spain,Madrid,Louis,Martin,1,18.76,paid
+Sweden,Stockholm,Lucas,Wilson,2,37.96,paid
+United Kingdom,Manchester,Adam,Anderson,2,36.82,paid
+United States,San Francisco,Zoe,Lefebvre,5,202.93,paid
+United States,New York,Alice,Laurent,3,24.5,refunded
+France,Annecy,Sofia,Evans,1,73.77,pending
+Italy,Rome,Adam,Silva,1,37.62,cancelled
+Italy,Siena,Sofia,Walker,1,2.16,paid
+Switzerland,Zurich,Zoe,Lefebvre,2,114.36,paid
+United Kingdom,London,Mia,Lefebvre,1,141.6,paid
+Germany,Berlin,Oscar,Dubois,6,178.32,paid
+France,Bordeaux,Adam,Wilson,2,144.29,paid
+United Kingdom,London,Gabriel,Silva,4,163.35,refunded
+Italy,Milan,Amelia,Costa,4,39.91,paid
+France,Bordeaux,Alice,Martin,1,51.45,paid
+Germany,Berlin,Zoe,Walker,5,72.95,paid
+Spain,Madrid,Zoe,Evans,4,159.44,paid
+Switzerland,Zurich,Alice,Silva,1,69.39,paid
+Spain,Madrid,Elena,Walker,5,162.63,paid
+Portugal,Faro,Amelia,Clark,1,1.09,paid
+Portugal,Lisbon,Oscar,Thomas,6,113.05,paid
+United Kingdom,London,Olivia,Silva,3,67.82,paid
+Belgium,Namur,Oscar,Dubois,1,1.84,paid
+Netherlands,Amsterdam,Olivia,Brown,5,23.76,paid
+Sweden,Stockholm,Liam,Walker,6,186.48,paid
+France,Bordeaux,Chloe,Walker,1,60.77,paid
+Italy,Milan,Olivia,Laurent,2,133.05,pending
+France,Lyon,Sofia,Wilson,5,124.92,paid
+Netherlands,Amsterdam,Adam,Walker,4,187.4,paid
+France,Marseille,Amelia,Martin,4,151.74,paid
+United States,San Francisco,Elena,Lefebvre,1,61.6,paid
+Spain,Barcelona,Amelia,Bernard,2,200.4,paid
+Belgium,Namur,Nina,Thomas,2,118.51,refunded
+Germany,Berlin,Elena,Brown,6,25.69,paid
+Italy,Rome,Emma,Anderson,3,152.4,refunded
+Portugal,Lisbon,Liam,Lefebvre,3,136.17,paid
+Belgium,Namur,Lucas,Taylor,3,111.92,pending
+France,Paris,Leo,Garcia,2,140.24,paid
+United States,New York,Adam,Laurent,6,94.33,paid
+Belgium,Brussels,Adam,Silva,5,224.52,paid
+United Kingdom,London,Alice,Laurent,1,34.78,paid
+France,Annecy,Arthur,Anderson,5,155.43,cancelled
+Netherlands,Amsterdam,Sofia,Moreau,2,131.19,paid
+Spain,Barcelona,Zoe,Garcia,2,202.69,paid
+Sweden,Stockholm,Adam,Taylor,3,74.74,paid
+Italy,Siena,Sofia,Silva,1,1.53,paid
+Canada,Montreal,Chloe,Taylor,4,134.51,refunded
+France,Bordeaux,Adam,Walker,6,128.77,paid
+Italy,Milan,Louis,Bernard,6,108.4,refunded
+France,Lyon,Sofia,Silva,2,53.02,paid
+United Kingdom,London,Sofia,Thomas,5,138.78,paid
+Italy,Milan,Arthur,Evans,6,179.61,paid
+Sweden,Stockholm,Chloe,Dubois,2,229.71,paid
+Italy,Rome,Alice,Muller,1,72.76,paid
+Japan,Tokyo,Sofia,Brown,2,163.73,cancelled
+Spain,Barcelona,Arthur,Brown,3,164.7,paid
+United States,San Francisco,Hugo,Laurent,2,66.55,cancelled
+Denmark,Copenhagen,Oscar,Laurent,5,199.99,paid
+Belgium,Brussels,Sofia,Lefebvre,2,176.78,paid
+Belgium,Brussels,Alice,Dubois,4,146.43,cancelled
+France,Bordeaux,Louis,Silva,1,142.0,paid
+Spain,Madrid,Oscar,Walker,1,148.56,paid
+France,Paris,Sofia,Muller,4,159.28,paid
+Switzerland,Zurich,Chloe,Thomas,4,145.02,paid
+Japan,Tokyo,Leo,Walker,5,114.47,paid
+France,Lyon,Mia,Evans,2,146.14,paid
+Germany,Berlin,Zoe,Thomas,1,171.28,paid
+France,Paris,Hugo,Martin,1,149.51,paid
+Italy,Siena,Lucas,Bernard,1,1.32,paid
+Spain,Barcelona,Oscar,Costa,6,146.32,paid
+Italy,Rome,Hugo,Silva,4,84.83,paid
+Italy,Rome,Olivia,Moreau,5,106.23,paid
+Canada,Montreal,Zoe,Costa,2,50.38,paid
+Denmark,Copenhagen,Alice,Bernard,1,28.98,paid
+Sweden,Stockholm,Emma,Clark,3,48.35,paid
+France,Lyon,Zoe,Moreau,6,130.13,cancelled
+Germany,Munich,Elena,Garcia,6,137.18,paid
+Italy,Rome,Liam,Anderson,4,98.02,paid
+United Kingdom,London,Amelia,Walker,5,76.87,paid
+Netherlands,Amsterdam,Sofia,Brown,1,184.52,paid
+Portugal,Faro,Mia,Martin,1,1.16,paid
+France,Paris,Zoe,Lopez,5,71.11,paid
+United States,New York,Olivia,Silva,5,252.51,paid
+France,Paris,Arthur,Costa,1,100.64,paid
+France,Bordeaux,Oscar,Muller,4,147.53,paid
+France,Marseille,Amelia,Anderson,1,54.3,paid
+Portugal,Lisbon,Emma,Taylor,3,25.26,paid
+Spain,Madrid,Liam,Rossi,3,82.12,paid
+United Kingdom,Manchester,Alice,Muller,1,164.67,pending
+France,Lyon,Mia,Wilson,1,63.41,paid
+Spain,Barcelona,Leo,Laurent,2,170.42,paid
+Sweden,Stockholm,Olivia,Martin,3,67.36,paid
+Sweden,Stockholm,Leo,Rossi,5,156.13,paid
+Netherlands,Amsterdam,Oscar,Anderson,2,166.05,paid
+France,Bordeaux,Emma,Costa,5,121.23,paid
+Sweden,Stockholm,Zoe,Garcia,4,121.7,paid
+Denmark,Copenhagen,Hugo,Wilson,1,31.82,paid
+Germany,Berlin,Arthur,Rossi,5,52.75,paid
+France,Marseille,Hugo,Brown,1,78.44,paid
+Denmark,Copenhagen,Chloe,Clark,2,59.63,paid
+Sweden,Stockholm,Sofia,Moreau,3,165.04,paid
+France,Paris,Olivia,Walker,2,31.0,paid
+Italy,Milan,Arthur,Costa,4,196.27,paid
+France,Marseille,Hugo,Evans,1,28.35,paid
+United Kingdom,London,Leo,Muller,6,157.78,paid
+Germany,Munich,Amelia,Silva,6,83.47,cancelled
+United Kingdom,Manchester,Arthur,Lopez,5,142.17,paid
+Canada,Montreal,Alice,Silva,4,108.62,paid
+Portugal,Lisbon,Adam,Rossi,4,77.62,paid
+Spain,Barcelona,Nina,Rossi,5,70.54,paid
+France,Lyon,Noah,Walker,2,54.05,paid
+Germany,Berlin,Alice,Anderson,5,23.24,paid
+Italy,Rome,Mia,Muller,1,129.17,paid
+Germany,Munich,Zoe,Lefebvre,4,139.13,paid
+France,Lyon,Liam,Clark,2,116.71,paid
+Belgium,Brussels,Chloe,Walker,4,29.1,paid
+Netherlands,Amsterdam,Liam,Costa,1,190.65,paid
+France,Lyon,Arthur,Evans,2,76.92,paid
+France,Paris,Chloe,Costa,1,39.42,cancelled
+Germany,Berlin,Gabriel,Brown,6,168.28,paid
+Belgium,Brussels,Amelia,Evans,3,108.55,paid
+Germany,Berlin,Mia,Martin,2,62.93,paid
+Germany,Munich,Leo,Silva,2,75.6,paid
+Italy,Rome,Arthur,Moreau,4,177.49,paid
+Portugal,Lisbon,Louis,Silva,3,58.22,pending
+Portugal,Faro,Amelia,Bernard,3,99.67,refunded
+Spain,Barcelona,Louis,Thomas,3,177.7,paid
+Italy,Siena,Nina,Muller,6,57.46,cancelled
+Italy,Siena,Emma,Moreau,1,1.85,paid
+Germany,Munich,Louis,Dubois,3,29.68,paid
+United States,San Francisco,Mia,Clark,1,101.27,paid
+Japan,Tokyo,Elena,Dubois,4,21.49,paid
+United States,New York,Lucas,Garcia,3,79.98,paid
+Denmark,Copenhagen,Oscar,Moreau,5,30.15,paid
+Sweden,Stockholm,Louis,Muller,6,24.49,paid
+Denmark,Copenhagen,Alice,Wilson,5,162.37,paid
+Sweden,Stockholm,Chloe,Garcia,4,214.93,paid
+United States,San Francisco,Amelia,Wilson,1,98.55,pending
+Spain,Madrid,Sofia,Wilson,3,190.18,paid
+Spain,Barcelona,Olivia,Bernard,2,137.78,paid
+Japan,Tokyo,Lucas,Evans,3,161.33,paid
+Portugal,Lisbon,Noah,Martin,2,123.85,paid
+Spain,Barcelona,Emma,Muller,2,65.48,cancelled
+Italy,Rome,Louis,Silva,2,93.54,paid
+Portugal,Faro,Zoe,Thomas,5,138.43,refunded
+Spain,Madrid,Louis,Walker,2,26.5,cancelled
+United States,San Francisco,Mia,Moreau,6,136.98,paid
+Germany,Berlin,Oscar,Walker,3,34.8,paid
+Spain,Barcelona,Nina,Bernard,2,198.09,refunded
+France,Marseille,Olivia,Wilson,1,167.8,paid
+United Kingdom,Manchester,Zoe,Muller,6,64.98,paid
+Canada,Montreal,Zoe,Rossi,3,199.22,paid
+Portugal,Faro,Olivia,Garcia,5,81.86,refunded
+United States,New York,Lucas,Taylor,3,205.6,refunded
+Belgium,Namur,Arthur,Walker,1,2.39,paid
+Belgium,Brussels,Adam,Anderson,1,211.95,paid
+Belgium,Brussels,Liam,Anderson,3,20.52,paid
+France,Marseille,Amelia,Silva,4,58.5,paid
+Italy,Rome,Sofia,Anderson,4,212.54,paid
+France,Paris,Mia,Walker,2,113.32,paid
+United States,New York,Lucas,Brown,1,112.24,paid
+United States,New York,Zoe,Anderson,4,91.86,paid
+United Kingdom,Manchester,Hugo,Walker,1,120.61,paid
+Switzerland,Zurich,Arthur,Anderson,5,53.82,paid
+Italy,Milan,Lucas,Thomas,1,122.69,paid
+Japan,Tokyo,Elena,Lefebvre,6,162.56,paid
+Germany,Berlin,Amelia,Martin,2,26.66,refunded
+France,Paris,Sofia,Dubois,3,124.85,paid
+Japan,Tokyo,Zoe,Laurent,5,191.08,paid
+Netherlands,Amsterdam,Liam,Anderson,3,147.89,cancelled
+Switzerland,Zurich,Sofia,Evans,5,110.84,paid
+Spain,Barcelona,Hugo,Clark,5,66.92,paid
+Japan,Tokyo,Noah,Moreau,4,29.42,paid
+Belgium,Brussels,Chloe,Garcia,3,220.7,paid
+Netherlands,Amsterdam,Sofia,Lefebvre,6,155.92,paid
+United Kingdom,London,Gabriel,Silva,4,129.95,paid
+Spain,Madrid,Noah,Lefebvre,6,157.05,paid
+Denmark,Copenhagen,Lucas,Martin,3,32.39,paid
+Italy,Milan,Noah,Thomas,6,135.1,paid
+France,Bordeaux,Chloe,Anderson,4,157.96,paid
+Canada,Montreal,Elena,Rossi,1,186.93,paid
+United States,San Francisco,Liam,Clark,6,67.73,paid
+Belgium,Brussels,Lucas,Muller,6,192.86,paid
+Denmark,Copenhagen,Chloe,Evans,5,192.25,paid
+Spain,Madrid,Alice,Garcia,3,173.5,paid
+Netherlands,Amsterdam,Lucas,Bernard,2,85.23,paid
+United Kingdom,London,Olivia,Anderson,1,82.12,paid
+Italy,Rome,Oscar,Moreau,2,166.1,paid
+France,Lyon,Louis,Garcia,4,112.93,paid
+Spain,Barcelona,Chloe,Silva,2,111.07,paid
+Italy,Siena,Zoe,Wilson,1,1.9,paid
+Japan,Tokyo,Leo,Bernard,4,33.0,paid
+Sweden,Stockholm,Lucas,Costa,1,28.39,paid
+United Kingdom,Manchester,Chloe,Thomas,6,55.58,paid
+Japan,Tokyo,Hugo,Evans,4,118.84,refunded
+Germany,Berlin,Arthur,Martin,5,179.41,paid
+France,Marseille,Leo,Evans,4,20.35,pending
+Japan,Tokyo,Hugo,Costa,2,194.46,paid
+Switzerland,Zurich,Oscar,Garcia,5,181.21,refunded
+Portugal,Lisbon,Leo,Dubois,4,189.71,paid
+Denmark,Copenhagen,Hugo,Costa,3,196.61,paid
+France,Lyon,Olivia,Martin,4,107.4,paid
+Portugal,Lisbon,Adam,Thomas,6,116.21,paid
+France,Marseille,Zoe,Wilson,3,99.93,paid
+United Kingdom,Manchester,Gabriel,Anderson,2,27.64,paid
+Germany,Berlin,Noah,Clark,2,113.21,paid
+Italy,Siena,Liam,Silva,1,1.26,paid
+Italy,Siena,Oscar,Lefebvre,5,241.9,pending
+France,Marseille,Alice,Anderson,1,194.18,pending
+Switzerland,Zurich,Leo,Taylor,3,160.57,paid
+Spain,Madrid,Elena,Walker,1,88.4,paid
+France,Annecy,Adam,Walker,1,1.07,paid
+United Kingdom,Manchester,Hugo,Muller,6,164.29,paid
+Spain,Barcelona,Liam,Thomas,2,146.25,paid
+Belgium,Brussels,Arthur,Muller,1,123.74,paid
+Italy,Rome,Olivia,Laurent,5,190.15,refunded
+France,Paris,Chloe,Rossi,6,204.01,refunded
+Spain,Barcelona,Emma,Clark,5,125.71,paid
+Germany,Berlin,Noah,Clark,5,174.54,paid
+Japan,Tokyo,Louis,Bernard,6,43.79,paid
+France,Marseille,Elena,Thomas,3,172.83,paid
+Switzerland,Zurich,Oscar,Walker,5,156.13,paid
+France,Bordeaux,Adam,Silva,4,122.87,paid
+France,Bordeaux,Lucas,Anderson,4,36.48,refunded
+Sweden,Stockholm,Gabriel,Brown,1,179.05,paid
+Italy,Milan,Leo,Anderson,4,155.17,paid
+Switzerland,Zurich,Arthur,Martin,1,73.14,refunded
+Portugal,Lisbon,Nina,Martin,1,224.33,paid
+United States,New York,Adam,Anderson,4,135.96,paid
+Germany,Munich,Amelia,Thomas,4,106.32,paid
+Belgium,Brussels,Lucas,Laurent,4,97.37,pending
+France,Annecy,Hugo,Rossi,5,58.86,refunded
+Denmark,Copenhagen,Chloe,Laurent,1,107.54,paid
+France,Lyon,Arthur,Lopez,5,13.88,paid
+France,Bordeaux,Lucas,Muller,2,140.13,paid
+Switzerland,Zurich,Nina,Evans,3,32.18,paid
+France,Bordeaux,Hugo,Thomas,1,84.7,paid
+Spain,Madrid,Louis,Moreau,3,223.61,refunded
+Italy,Siena,Olivia,Clark,1,2.36,paid
+Belgium,Namur,Olivia,Muller,1,1.84,paid
+Denmark,Copenhagen,Adam,Dubois,2,86.43,paid
+United Kingdom,Manchester,Louis,Costa,3,54.41,pending
+Belgium,Brussels,Arthur,Silva,4,177.49,paid
+Netherlands,Amsterdam,Adam,Thomas,1,66.67,paid
+France,Lyon,Olivia,Evans,5,27.37,paid
+Spain,Madrid,Alice,Muller,1,15.02,refunded
+Netherlands,Amsterdam,Leo,Moreau,4,127.37,paid
+France,Paris,Lucas,Walker,5,50.89,paid
+France,Paris,Noah,Muller,6,87.13,paid
+France,Marseille,Alice,Dubois,5,167.72,paid
+Portugal,Faro,Olivia,Anderson,1,2.42,paid
+Japan,Tokyo,Sofia,Silva,1,210.9,paid
+Switzerland,Zurich,Noah,Anderson,3,168.12,paid
+Italy,Siena,Nina,Laurent,1,0.59,paid
+Canada,Montreal,Alice,Lopez,1,146.19,paid
+Spain,Barcelona,Nina,Thomas,6,97.58,paid
+Switzerland,Zurich,Chloe,Silva,3,177.12,paid
+France,Bordeaux,Oscar,Silva,4,108.5,paid
+Italy,Rome,Noah,Rossi,1,103.03,paid
+United States,San Francisco,Amelia,Taylor,1,199.87,paid
+Italy,Siena,Leo,Thomas,1,0.67,paid
+United States,San Francisco,Olivia,Silva,3,174.45,paid
+France,Lyon,Olivia,Taylor,4,30.73,paid
+France,Annecy,Noah,Thomas,1,2.24,paid
+Belgium,Brussels,Lucas,Costa,5,204.78,pending
+United States,San Francisco,Olivia,Garcia,4,154.09,paid
+France,Paris,Liam,Evans,5,30.47,paid
+Canada,Montreal,Arthur,Anderson,3,98.45,refunded
+Germany,Berlin,Nina,Garcia,1,71.61,paid
+France,Marseille,Oscar,Evans,3,63.12,paid
+Canada,Montreal,Leo,Rossi,3,223.57,pending
+Italy,Siena,Elena,Bernard,4,67.19,refunded
+Germany,Berlin,Sofia,Moreau,4,94.97,paid
+Italy,Rome,Emma,Thomas,4,68.4,paid
+Belgium,Namur,Nina,Silva,1,1.73,paid
+Portugal,Lisbon,Lucas,Lopez,6,38.25,paid
+Sweden,Stockholm,Leo,Rossi,1,199.23,pending
+Belgium,Brussels,Amelia,Moreau,1,79.11,paid
+France,Annecy,Elena,Moreau,1,1.34,paid
+United Kingdom,London,Hugo,Moreau,4,179.39,paid
+Portugal,Lisbon,Leo,Muller,5,77.35,paid
+Belgium,Brussels,Chloe,Anderson,2,74.25,paid
+Portugal,Lisbon,Nina,Martin,1,172.42,paid
+Spain,Barcelona,Olivia,Evans,2,188.51,paid
+Italy,Siena,Leo,Laurent,5,40.58,pending
+Italy,Milan,Gabriel,Dubois,6,214.28,paid
+Belgium,Namur,Zoe,Wilson,1,2.2,paid
+Italy,Siena,Amelia,Wilson,1,0.68,paid
+France,Bordeaux,Lucas,Taylor,1,117.0,paid
+Sweden,Stockholm,Liam,Muller,6,186.71,paid
+United Kingdom,Manchester,Chloe,Bernard,1,111.72,paid
+United Kingdom,Manchester,Lucas,Rossi,5,57.27,paid
+Belgium,Namur,Mia,Lopez,2,215.57,refunded
+United Kingdom,Manchester,Alice,Garcia,3,70.41,paid
+Denmark,Copenhagen,Gabriel,Bernard,3,122.22,paid
+United States,New York,Gabriel,Dubois,6,135.47,pending
+United States,San Francisco,Nina,Bernard,6,161.35,cancelled
+Netherlands,Amsterdam,Olivia,Evans,3,35.96,paid
+United States,San Francisco,Arthur,Anderson,1,139.82,cancelled
+Denmark,Copenhagen,Amelia,Dubois,1,183.69,paid
+Germany,Munich,Chloe,Lopez,3,35.82,paid
+United Kingdom,London,Zoe,Taylor,1,184.39,pending
+Italy,Rome,Lucas,Bernard,5,74.9,paid
+United States,New York,Mia,Garcia,6,148.05,paid
+France,Lyon,Lucas,Rossi,4,65.87,paid
+France,Paris,Louis,Lopez,2,149.48,paid
+United States,San Francisco,Noah,Martin,2,109.64,paid
+Canada,Montreal,Oscar,Costa,3,228.54,paid
+Italy,Rome,Gabriel,Evans,5,83.55,paid
+United States,San Francisco,Lucas,Rossi,3,177.11,paid
+Germany,Berlin,Louis,Costa,3,94.98,paid
+Denmark,Copenhagen,Amelia,Clark,4,194.58,refunded
+Germany,Munich,Amelia,Garcia,3,32.05,paid
+Spain,Barcelona,Liam,Garcia,6,138.26,paid
+Sweden,Stockholm,Mia,Garcia,3,36.33,paid
+United States,New York,Zoe,Thomas,2,47.68,paid
+United Kingdom,Manchester,Arthur,Dubois,4,92.33,paid
+Denmark,Copenhagen,Olivia,Anderson,2,132.65,cancelled
+Belgium,Namur,Oscar,Rossi,1,1.33,paid
+Portugal,Faro,Lucas,Rossi,1,1.83,paid
+Italy,Rome,Oscar,Bernard,5,111.54,paid
+France,Bordeaux,Louis,Walker,1,155.97,paid
+United Kingdom,Manchester,Olivia,Evans,3,184.53,paid
+Spain,Barcelona,Gabriel,Dubois,4,112.35,paid
+Germany,Munich,Elena,Clark,1,80.99,paid
+Italy,Siena,Lucas,Moreau,4,73.08,cancelled
+France,Paris,Olivia,Moreau,6,78.76,pending
+Germany,Munich,Nina,Costa,5,126.11,paid
+France,Bordeaux,Nina,Wilson,3,146.13,cancelled
+Italy,Rome,Leo,Muller,6,56.9,paid
+Canada,Montreal,Mia,Rossi,2,58.92,cancelled
+Portugal,Lisbon,Alice,Dubois,2,50.47,paid
+Italy,Siena,Leo,Anderson,3,159.81,cancelled
+Portugal,Lisbon,Louis,Dubois,2,198.6,paid
+Canada,Montreal,Alice,Dubois,2,104.53,paid
+Germany,Berlin,Louis,Martin,3,166.85,paid
+Canada,Montreal,Elena,Thomas,5,103.33,paid
+Spain,Madrid,Lucas,Evans,5,68.61,paid
+Spain,Barcelona,Arthur,Muller,3,179.4,paid
+France,Marseille,Zoe,Bernard,3,151.86,paid
+France,Lyon,Adam,Clark,4,75.27,paid
+France,Bordeaux,Amelia,Evans,4,82.6,paid
+Sweden,Stockholm,Gabriel,Taylor,5,241.12,paid
+Portugal,Lisbon,Adam,Moreau,4,34.76,paid
+United Kingdom,Manchester,Leo,Rossi,4,161.34,paid
+United States,San Francisco,Alice,Garcia,6,233.92,refunded
+France,Bordeaux,Amelia,Thomas,3,117.53,paid
+Switzerland,Zurich,Nina,Rossi,4,190.75,paid
+Spain,Madrid,Hugo,Thomas,5,18.28,paid
+Germany,Berlin,Leo,Silva,3,15.48,paid
+United States,New York,Alice,Silva,6,61.22,paid
+Spain,Barcelona,Gabriel,Anderson,3,195.44,paid
+Portugal,Lisbon,Adam,Rossi,6,219.89,paid
+Sweden,Stockholm,Arthur,Taylor,2,19.85,paid
+Canada,Montreal,Gabriel,Garcia,4,102.05,paid
+Portugal,Faro,Adam,Bernard,1,1.61,paid
+United Kingdom,Manchester,Alice,Lopez,6,31.1,paid
+France,Marseille,Olivia,Bernard,4,52.9,paid
+Switzerland,Zurich,Hugo,Lefebvre,2,88.34,paid
+France,Lyon,Hugo,Costa,5,36.48,paid
+Germany,Munich,Oscar,Clark,6,189.71,paid
+United States,San Francisco,Leo,Muller,6,45.73,paid
+Canada,Montreal,Olivia,Garcia,1,214.65,pending
+Italy,Rome,Louis,Moreau,2,178.14,paid
+Germany,Berlin,Arthur,Rossi,2,143.41,cancelled
+Portugal,Lisbon,Oscar,Walker,1,186.72,paid
+United States,New York,Olivia,Taylor,3,251.83,paid
+Germany,Berlin,Alice,Dubois,5,58.92,paid
+Germany,Munich,Hugo,Lopez,2,38.38,paid
+United Kingdom,London,Elena,Clark,5,140.48,paid
+France,Paris,Louis,Evans,5,49.21,paid
+Italy,Rome,Louis,Costa,2,80.72,paid
+Italy,Milan,Gabriel,Wilson,4,175.78,paid
+Italy,Milan,Lucas,Martin,3,93.98,paid
+United Kingdom,London,Nina,Martin,2,36.2,cancelled
+Italy,Rome,Oscar,Moreau,3,24.93,paid
+Italy,Milan,Noah,Silva,2,164.28,paid
+France,Marseille,Alice,Laurent,6,31.82,paid
+Canada,Montreal,Liam,Brown,6,226.24,paid
+United Kingdom,Manchester,Noah,Evans,2,133.83,paid
+France,Marseille,Oscar,Evans,6,38.11,paid
+United States,San Francisco,Oscar,Walker,6,163.13,paid
+Italy,Milan,Noah,Wilson,5,199.02,paid
+France,Lyon,Amelia,Brown,2,41.7,paid
+Italy,Milan,Olivia,Laurent,1,74.47,paid
+France,Bordeaux,Mia,Wilson,1,106.98,paid
+Germany,Berlin,Gabriel,Clark,3,142.56,paid
+United States,San Francisco,Nina,Silva,3,195.78,paid
+Belgium,Namur,Lucas,Thomas,1,2.17,paid
+Italy,Rome,Zoe,Lefebvre,2,158.36,paid
+Netherlands,Amsterdam,Nina,Wilson,5,102.31,paid
+Germany,Berlin,Amelia,Clark,5,169.02,pending
+Germany,Berlin,Alice,Lefebvre,6,85.58,paid
+Italy,Milan,Elena,Lopez,4,130.46,paid
+Netherlands,Amsterdam,Alice,Taylor,1,173.48,paid
+Switzerland,Zurich,Olivia,Brown,6,48.35,paid
+Denmark,Copenhagen,Nina,Bernard,1,39.77,paid
+Belgium,Brussels,Arthur,Moreau,4,56.6,paid
+United Kingdom,Manchester,Olivia,Bernard,4,97.99,pending
+Canada,Montreal,Alice,Garcia,5,38.51,paid
+United States,New York,Noah,Silva,2,249.94,paid
+United States,San Francisco,Leo,Walker,3,231.82,paid
+France,Paris,Zoe,Silva,2,109.0,paid
+Switzerland,Zurich,Mia,Moreau,3,42.32,paid
+Italy,Siena,Olivia,Rossi,1,1.84,paid
+Denmark,Copenhagen,Zoe,Clark,3,241.37,pending
+Canada,Montreal,Louis,Garcia,3,216.8,cancelled
+United States,San Francisco,Leo,Muller,3,223.34,paid
+Italy,Rome,Amelia,Silva,6,210.97,paid
+France,Marseille,Lucas,Moreau,6,52.81,paid
+Japan,Tokyo,Lucas,Laurent,3,187.39,paid
+France,Lyon,Oscar,Taylor,6,15.07,refunded
+Japan,Tokyo,Nina,Bernard,4,193.98,paid
+Switzerland,Zurich,Louis,Laurent,6,91.35,refunded
+Italy,Milan,Gabriel,Thomas,6,197.84,paid
+Japan,Tokyo,Olivia,Evans,4,222.0,paid
+United Kingdom,Manchester,Emma,Thomas,5,70.64,paid
+France,Marseille,Zoe,Taylor,1,126.7,paid
+Portugal,Faro,Elena,Taylor,2,31.84,pending
+United States,San Francisco,Arthur,Martin,6,167.57,cancelled
+Portugal,Lisbon,Nina,Lefebvre,6,189.51,paid
+United States,San Francisco,Oscar,Evans,3,72.35,paid
+France,Lyon,Elena,Bernard,2,155.13,paid
+France,Lyon,Elena,Garcia,2,22.88,paid
+Portugal,Lisbon,Nina,Laurent,2,36.35,paid
+Sweden,Stockholm,Leo,Silva,1,143.91,paid
+Italy,Milan,Hugo,Rossi,2,183.87,paid
+Canada,Montreal,Liam,Muller,3,132.46,paid
+Spain,Barcelona,Oscar,Dubois,5,138.7,paid
+Canada,Montreal,Adam,Moreau,4,258.11,paid
+France,Paris,Chloe,Bernard,4,106.08,paid
+Denmark,Copenhagen,Alice,Brown,1,33.1,paid
+Germany,Munich,Leo,Garcia,6,172.55,paid
+Spain,Barcelona,Nina,Wilson,2,28.54,paid
+Switzerland,Zurich,Noah,Anderson,6,70.55,paid
+Belgium,Namur,Leo,Lefebvre,1,0.8,paid
+United States,New York,Hugo,Lefebvre,6,198.75,paid
+Denmark,Copenhagen,Lucas,Brown,4,42.43,paid
+Canada,Montreal,Noah,Laurent,2,170.22,paid
+United States,New York,Adam,Walker,6,238.38,paid
+United States,San Francisco,Liam,Costa,2,123.94,refunded
+Denmark,Copenhagen,Oscar,Garcia,5,154.7,paid
+United Kingdom,London,Emma,Moreau,5,227.92,pending
+Denmark,Copenhagen,Lucas,Costa,4,181.3,paid
+United Kingdom,Manchester,Arthur,Clark,5,100.64,paid
+France,Marseille,Nina,Lefebvre,5,121.98,paid
+Italy,Siena,Adam,Silva,6,232.17,cancelled
+Denmark,Copenhagen,Zoe,Silva,6,180.56,paid
+Portugal,Faro,Amelia,Laurent,4,119.66,refunded
+United States,New York,Alice,Wilson,5,202.83,pending
+France,Paris,Leo,Lopez,2,79.15,paid
+France,Bordeaux,Adam,Laurent,1,74.19,paid
+Sweden,Stockholm,Alice,Lopez,2,169.21,cancelled
+United Kingdom,Manchester,Leo,Taylor,5,152.47,paid
+United Kingdom,Manchester,Lucas,Muller,2,142.94,paid
+Italy,Milan,Sofia,Lefebvre,4,34.79,paid
+Portugal,Faro,Arthur,Costa,1,74.53,refunded
+Denmark,Copenhagen,Chloe,Garcia,5,150.46,paid
+Switzerland,Zurich,Hugo,Costa,6,85.63,paid
+Portugal,Lisbon,Gabriel,Wilson,4,156.88,paid
+Portugal,Faro,Olivia,Silva,4,55.63,cancelled
+Germany,Munich,Liam,Evans,1,162.83,paid
+Belgium,Namur,Leo,Rossi,1,2.0,paid
+United States,San Francisco,Liam,Costa,2,35.46,paid
+Germany,Munich,Sofia,Muller,2,154.87,paid
+Spain,Madrid,Elena,Lefebvre,2,149.9,paid
+France,Annecy,Gabriel,Muller,1,1.87,paid
+Japan,Tokyo,Lucas,Thomas,6,53.97,pending
+Portugal,Lisbon,Liam,Wilson,1,157.01,paid
+Belgium,Namur,Zoe,Laurent,1,2.4,paid
+Portugal,Lisbon,Gabriel,Evans,4,18.15,paid
+Belgium,Brussels,Louis,Thomas,4,157.06,paid
+Sweden,Stockholm,Lucas,Laurent,4,43.99,paid
+Denmark,Copenhagen,Arthur,Martin,4,200.1,paid
+Spain,Barcelona,Hugo,Costa,4,163.59,paid
+Belgium,Brussels,Amelia,Thomas,2,147.34,pending
+Italy,Milan,Zoe,Martin,3,148.62,paid
+United Kingdom,London,Leo,Moreau,5,19.76,paid
+Switzerland,Zurich,Arthur,Anderson,3,88.36,paid
+Germany,Berlin,Mia,Laurent,6,37.63,cancelled
+France,Paris,Lucas,Dubois,6,27.17,paid
+France,Bordeaux,Sofia,Bernard,1,124.69,paid
+France,Annecy,Chloe,Lopez,1,2.41,paid
+Portugal,Lisbon,Noah,Bernard,5,200.77,paid
+France,Bordeaux,Emma,Brown,4,47.35,paid
+Netherlands,Amsterdam,Noah,Anderson,5,98.24,paid
+United Kingdom,Manchester,Leo,Clark,3,88.37,paid
+Sweden,Stockholm,Adam,Bernard,5,32.89,paid
+Canada,Montreal,Adam,Muller,2,29.72,paid
+France,Paris,Oscar,Anderson,3,64.58,paid
+France,Marseille,Zoe,Clark,4,103.31,paid
+Switzerland,Zurich,Gabriel,Walker,1,224.47,paid
+Denmark,Copenhagen,Lucas,Anderson,1,76.27,paid
+Netherlands,Amsterdam,Adam,Walker,5,44.58,paid
+Italy,Siena,Nina,Moreau,1,1.37,paid
+France,Marseille,Lucas,Thomas,1,163.96,refunded
+France,Paris,Louis,Laurent,2,65.97,cancelled
+Spain,Madrid,Lucas,Moreau,1,85.48,paid
+Spain,Madrid,Gabriel,Rossi,3,192.86,paid
+United States,New York,Gabriel,Garcia,6,177.86,paid
+Portugal,Lisbon,Oscar,Rossi,6,184.12,paid
+Italy,Milan,Oscar,Garcia,5,217.48,paid
+Japan,Tokyo,Lucas,Martin,3,109.75,paid
+United States,New York,Hugo,Martin,4,242.37,paid
+France,Bordeaux,Chloe,Thomas,3,123.98,cancelled
+Germany,Berlin,Nina,Evans,2,166.33,paid
+France,Paris,Noah,Martin,6,52.7,paid
+United Kingdom,Manchester,Noah,Evans,1,38.3,paid
+Spain,Madrid,Nina,Wilson,3,52.99,paid
+France,Marseille,Lucas,Brown,6,44.55,paid
+France,Bordeaux,Zoe,Rossi,6,122.73,paid
+Canada,Montreal,Chloe,Costa,3,121.9,paid
+Italy,Siena,Chloe,Garcia,5,125.48,refunded
+Portugal,Lisbon,Emma,Garcia,6,233.82,paid
+United Kingdom,London,Amelia,Silva,6,31.14,paid
+France,Bordeaux,Zoe,Moreau,4,13.73,paid
+Sweden,Stockholm,Noah,Lefebvre,6,182.42,paid
+France,Lyon,Mia,Moreau,1,236.87,pending
+Germany,Munich,Liam,Lopez,1,98.72,paid
+United States,New York,Zoe,Moreau,5,26.87,paid
+Netherlands,Amsterdam,Zoe,Martin,3,56.13,refunded
+Portugal,Faro,Alice,Wilson,1,0.81,paid
+Belgium,Brussels,Zoe,Laurent,3,27.08,paid
+United States,New York,Liam,Costa,5,232.43,paid
+Italy,Milan,Louis,Rossi,5,150.34,cancelled
+United States,San Francisco,Leo,Rossi,2,144.65,paid
+Spain,Madrid,Gabriel,Walker,3,70.73,refunded
+France,Marseille,Oscar,Anderson,5,112.06,paid
+Germany,Munich,Lucas,Moreau,5,24.8,paid
+Spain,Barcelona,Olivia,Evans,4,146.45,paid
+France,Annecy,Liam,Rossi,1,1.03,paid
+Switzerland,Zurich,Sofia,Laurent,3,56.16,paid
+Italy,Siena,Adam,Garcia,1,1.99,paid
+Denmark,Copenhagen,Lucas,Bernard,5,208.07,paid
+Denmark,Copenhagen,Chloe,Dubois,4,65.05,paid
+Italy,Siena,Zoe,Muller,2,124.2,cancelled
+Italy,Milan,Alice,Dubois,3,101.26,cancelled
+Belgium,Brussels,Chloe,Silva,5,97.79,paid
+Spain,Barcelona,Louis,Martin,5,46.75,pending
+Portugal,Lisbon,Oscar,Bernard,1,100.55,paid
+United States,San Francisco,Lucas,Bernard,5,214.22,paid
+Germany,Berlin,Noah,Walker,6,168.11,paid
+France,Annecy,Arthur,Moreau,1,0.98,paid
+Spain,Barcelona,Chloe,Muller,4,29.64,paid
+Spain,Barcelona,Lucas,Clark,5,187.78,paid
+Sweden,Stockholm,Adam,Martin,2,141.29,paid
+Denmark,Copenhagen,Hugo,Dubois,3,107.24,pending
+Sweden,Stockholm,Adam,Brown,4,157.35,paid
+France,Lyon,Zoe,Moreau,1,198.33,pending
+Japan,Tokyo,Adam,Brown,3,174.09,paid
+Netherlands,Amsterdam,Oscar,Moreau,5,82.84,paid
+Japan,Tokyo,Gabriel,Evans,1,179.09,refunded
+Portugal,Faro,Louis,Muller,1,1.48,paid
+Belgium,Brussels,Olivia,Bernard,5,136.74,paid
+United Kingdom,London,Gabriel,Laurent,5,122.88,paid
+Sweden,Stockholm,Gabriel,Clark,2,76.29,paid
+United Kingdom,London,Lucas,Dubois,3,152.25,paid
+Canada,Montreal,Elena,Bernard,5,169.39,paid
+United Kingdom,Manchester,Emma,Wilson,3,151.47,paid
+Belgium,Namur,Emma,Laurent,1,0.81,paid
+Switzerland,Zurich,Olivia,Brown,2,160.34,paid
+Italy,Milan,Lucas,Wilson,6,40.31,paid
+Germany,Berlin,Olivia,Bernard,4,131.96,paid
+United States,New York,Arthur,Lopez,5,73.08,paid
+United States,San Francisco,Hugo,Lefebvre,5,104.15,paid
+Switzerland,Zurich,Chloe,Evans,6,145.36,paid
+United Kingdom,London,Hugo,Brown,1,176.83,paid
+United States,San Francisco,Elena,Moreau,2,208.28,paid
+France,Bordeaux,Hugo,Evans,3,131.48,paid
+France,Lyon,Sofia,Moreau,1,37.58,paid
+United States,San Francisco,Amelia,Dubois,6,25.75,paid
+United States,New York,Gabriel,Thomas,4,56.4,paid
+Belgium,Brussels,Noah,Costa,1,65.94,paid
+United Kingdom,London,Leo,Martin,3,178.04,refunded
+Germany,Munich,Zoe,Thomas,3,172.55,paid
+Italy,Siena,Nina,Evans,5,217.58,cancelled
+Switzerland,Zurich,Zoe,Moreau,4,57.92,paid
+Italy,Rome,Louis,Muller,5,82.38,paid
+United Kingdom,Manchester,Hugo,Brown,1,54.54,paid
+Spain,Barcelona,Oscar,Thomas,4,68.42,paid
+Spain,Barcelona,Amelia,Clark,6,28.09,paid
+United States,San Francisco,Chloe,Dubois,5,166.73,paid
+Sweden,Stockholm,Elena,Taylor,5,54.83,cancelled
+Germany,Berlin,Mia,Moreau,1,43.66,pending
+United States,New York,Arthur,Laurent,2,32.11,paid
+France,Marseille,Adam,Thomas,5,141.93,paid
+United States,San Francisco,Noah,Brown,5,208.04,paid
+France,Marseille,Leo,Martin,6,100.16,paid
+United Kingdom,Manchester,Leo,Lopez,6,57.18,paid
+Italy,Siena,Alice,Martin,1,1.42,paid
+United States,San Francisco,Louis,Bernard,3,239.77,paid
+France,Marseille,Noah,Anderson,3,30.8,paid
+Japan,Tokyo,Sofia,Brown,4,74.64,paid
+Spain,Madrid,Louis,Dubois,5,85.82,paid
+Belgium,Brussels,Leo,Taylor,6,32.79,paid
+France,Paris,Liam,Clark,3,218.1,refunded
+Switzerland,Zurich,Gabriel,Walker,2,89.45,paid
+France,Bordeaux,Mia,Taylor,3,33.81,refunded
+United States,New York,Zoe,Brown,4,52.5,paid
+Sweden,Stockholm,Alice,Evans,2,57.1,cancelled
+United Kingdom,Manchester,Chloe,Moreau,3,153.1,refunded
+Germany,Munich,Zoe,Moreau,5,29.16,paid
+Sweden,Stockholm,Adam,Silva,2,74.63,paid
+Denmark,Copenhagen,Nina,Dubois,1,228.66,paid
+France,Marseille,Mia,Silva,3,156.52,paid
+France,Bordeaux,Sofia,Clark,4,23.85,paid
+Portugal,Lisbon,Leo,Anderson,3,38.72,paid
+United Kingdom,London,Amelia,Thomas,3,17.94,paid
+France,Marseille,Olivia,Laurent,5,16.56,refunded
+United States,San Francisco,Chloe,Wilson,4,234.64,paid
+Italy,Siena,Mia,Walker,4,161.41,refunded
+United Kingdom,Manchester,Mia,Evans,3,129.14,paid
+France,Bordeaux,Arthur,Silva,1,31.01,paid
+France,Annecy,Hugo,Thomas,2,102.28,cancelled
+France,Annecy,Arthur,Rossi,1,0.9,paid
+Belgium,Brussels,Adam,Bernard,4,80.79,paid
+Italy,Milan,Arthur,Walker,4,74.64,cancelled
+Netherlands,Amsterdam,Hugo,Silva,2,93.61,paid
+France,Bordeaux,Louis,Taylor,4,47.44,paid
+Germany,Munich,Hugo,Thomas,4,90.4,paid
+Italy,Rome,Nina,Rossi,3,135.71,paid
+Belgium,Namur,Nina,Moreau,1,1.29,paid
+Italy,Milan,Leo,Brown,6,201.7,paid
+United Kingdom,Manchester,Oscar,Brown,6,54.37,paid
+Italy,Milan,Lucas,Taylor,1,36.67,paid
+Belgium,Brussels,Emma,Martin,5,134.22,paid
+Portugal,Faro,Amelia,Walker,1,0.61,paid
+Switzerland,Zurich,Lucas,Costa,6,130.21,paid
+France,Annecy,Arthur,Laurent,1,1.67,paid
+Spain,Madrid,Amelia,Dubois,2,22.38,paid
+United Kingdom,London,Zoe,Rossi,4,32.85,paid
+Japan,Tokyo,Gabriel,Wilson,3,111.03,paid
+Portugal,Faro,Louis,Costa,1,1.45,paid
+Sweden,Stockholm,Noah,Walker,1,133.24,pending
+France,Paris,Arthur,Bernard,6,62.35,paid
+United Kingdom,London,Lucas,Brown,4,172.45,paid
+Italy,Milan,Leo,Silva,3,147.04,paid
+Germany,Berlin,Zoe,Walker,6,72.15,paid
+Switzerland,Zurich,Nina,Moreau,1,185.68,refunded
+Italy,Milan,Gabriel,Lopez,6,205.53,paid
+United Kingdom,London,Adam,Silva,5,58.41,paid
+United States,New York,Alice,Brown,5,223.01,paid
+Belgium,Brussels,Emma,Martin,5,170.4,paid
+Japan,Tokyo,Noah,Wilson,2,144.29,paid
+Italy,Milan,Amelia,Muller,4,216.46,paid
+Italy,Milan,Elena,Clark,1,201.93,paid
+Germany,Munich,Alice,Clark,3,191.44,paid
+Spain,Madrid,Hugo,Rossi,3,142.36,paid
+Belgium,Brussels,Elena,Bernard,3,73.91,paid
+Spain,Madrid,Lucas,Lopez,6,164.03,paid
+France,Lyon,Chloe,Brown,6,53.39,pending
+Canada,Montreal,Zoe,Lopez,5,165.35,refunded
+United States,New York,Zoe,Dubois,1,23.87,pending
+France,Paris,Zoe,Walker,2,99.09,paid
+Netherlands,Amsterdam,Alice,Martin,3,131.45,paid
+Japan,Tokyo,Adam,Evans,1,36.34,paid
+United Kingdom,London,Olivia,Wilson,2,146.55,paid
+France,Lyon,Adam,Thomas,6,36.04,paid
+United States,San Francisco,Emma,Thomas,5,145.92,paid
+Japan,Tokyo,Oscar,Brown,1,83.74,cancelled
+France,Marseille,Sofia,Garcia,2,130.43,paid
+Italy,Milan,Chloe,Laurent,4,222.16,refunded
+France,Lyon,Oscar,Lefebvre,5,35.05,paid
+Netherlands,Amsterdam,Hugo,Evans,1,183.14,paid
+France,Paris,Amelia,Brown,1,68.23,paid
+United Kingdom,London,Lucas,Evans,5,37.86,paid
+Japan,Tokyo,Amelia,Costa,5,193.56,paid
+Portugal,Lisbon,Olivia,Taylor,4,37.83,paid
+United States,New York,Gabriel,Clark,4,106.67,paid
+France,Lyon,Alice,Muller,4,60.75,paid
+Spain,Madrid,Adam,Wilson,4,109.31,paid
+United Kingdom,Manchester,Noah,Taylor,4,112.75,paid
+Japan,Tokyo,Amelia,Anderson,1,121.24,paid
+United Kingdom,London,Nina,Muller,5,179.66,paid
+United Kingdom,Manchester,Alice,Wilson,1,66.55,paid
+Belgium,Brussels,Chloe,Garcia,3,51.66,paid
+Netherlands,Amsterdam,Oscar,Muller,3,91.32,paid
+Japan,Tokyo,Chloe,Dubois,5,244.84,paid
+United Kingdom,London,Noah,Bernard,3,138.86,cancelled
+Belgium,Brussels,Noah,Dubois,3,18.64,paid
+Germany,Munich,Oscar,Clark,3,85.52,paid
+Germany,Berlin,Nina,Clark,5,119.84,paid
+Canada,Montreal,Lucas,Taylor,6,236.32,paid
+United States,San Francisco,Leo,Bernard,4,236.07,paid
+France,Lyon,Zoe,Lefebvre,4,49.56,paid
+Canada,Montreal,Liam,Brown,4,129.6,paid
+United States,New York,Arthur,Thomas,3,72.06,paid
+France,Marseille,Sofia,Muller,2,71.95,paid
+Spain,Madrid,Gabriel,Rossi,5,41.15,paid
+France,Lyon,Zoe,Brown,1,94.62,paid
+Portugal,Lisbon,Louis,Walker,2,89.85,paid
+United Kingdom,London,Nina,Wilson,2,58.39,paid
+Germany,Munich,Arthur,Taylor,5,116.79,paid
+Switzerland,Zurich,Leo,Bernard,5,101.27,refunded
+Japan,Tokyo,Gabriel,Garcia,4,101.07,paid
+Spain,Madrid,Alice,Wilson,3,117.56,paid
+Netherlands,Amsterdam,Adam,Lopez,2,78.94,paid
+United States,New York,Chloe,Anderson,6,36.96,paid
+Portugal,Lisbon,Olivia,Evans,1,190.19,paid
+Spain,Barcelona,Liam,Brown,5,45.04,paid
+Canada,Montreal,Nina,Bernard,2,207.76,paid
+France,Marseille,Mia,Walker,1,97.31,paid
+France,Annecy,Lucas,Dubois,1,173.3,refunded
+Italy,Milan,Amelia,Laurent,1,154.18,paid
+France,Lyon,Arthur,Laurent,2,41.44,paid
+Netherlands,Amsterdam,Hugo,Evans,2,168.63,paid
+Netherlands,Amsterdam,Sofia,Brown,6,223.91,paid
+United Kingdom,London,Alice,Garcia,3,143.2,paid
+France,Lyon,Amelia,Brown,6,242.58,pending
+Germany,Munich,Liam,Evans,5,133.78,paid
+Portugal,Lisbon,Emma,Thomas,6,54.43,paid
+United Kingdom,London,Louis,Brown,2,126.83,cancelled
+Italy,Siena,Arthur,Martin,1,1.78,paid
+Germany,Berlin,Arthur,Thomas,5,134.28,paid
+Japan,Tokyo,Liam,Lefebvre,1,214.67,paid
+Spain,Madrid,Lucas,Muller,1,108.75,refunded
+Portugal,Lisbon,Elena,Brown,2,231.74,paid
+Belgium,Brussels,Olivia,Clark,3,217.5,paid
+France,Lyon,Nina,Muller,4,118.93,paid
+Italy,Milan,Noah,Anderson,2,112.97,paid
+Germany,Berlin,Lucas,Dubois,5,50.84,paid
+France,Bordeaux,Mia,Evans,1,125.44,paid
+Japan,Tokyo,Alice,Anderson,2,57.03,refunded
+Belgium,Brussels,Zoe,Moreau,1,181.0,paid
+Belgium,Namur,Emma,Lefebvre,1,1.69,paid
+Spain,Madrid,Sofia,Dubois,5,191.46,paid
+France,Paris,Leo,Taylor,1,47.65,paid
+Japan,Tokyo,Liam,Walker,4,231.45,paid
+Portugal,Faro,Amelia,Thomas,1,0.6,paid
+Netherlands,Amsterdam,Hugo,Anderson,5,222.0,paid
+Netherlands,Amsterdam,Sofia,Rossi,5,169.37,refunded
+Italy,Siena,Arthur,Walker,1,0.51,paid
+Netherlands,Amsterdam,Lucas,Lefebvre,3,136.45,paid
+Japan,Tokyo,Amelia,Martin,6,238.87,paid
+France,Bordeaux,Arthur,Dubois,2,79.17,paid
+Germany,Munich,Louis,Taylor,2,176.53,refunded
+United States,New York,Hugo,Muller,1,112.69,paid
+Belgium,Brussels,Adam,Brown,1,36.21,paid
+Japan,Tokyo,Gabriel,Dubois,1,117.87,paid
+United States,New York,Alice,Brown,1,177.42,paid
+Portugal,Faro,Amelia,Garcia,5,233.88,pending
+Germany,Berlin,Emma,Wilson,4,164.88,paid
+United States,San Francisco,Alice,Anderson,5,213.2,paid
+United Kingdom,Manchester,Leo,Evans,1,114.07,paid
+Germany,Munich,Mia,Garcia,2,54.22,refunded
+France,Lyon,Zoe,Costa,3,155.35,paid
+United States,San Francisco,Adam,Laurent,5,229.23,paid
+United States,San Francisco,Gabriel,Bernard,6,220.45,paid
+Japan,Tokyo,Hugo,Walker,2,159.06,pending
+Belgium,Brussels,Mia,Laurent,2,30.62,paid
+Belgium,Brussels,Louis,Moreau,3,23.48,paid
+Germany,Munich,Amelia,Dubois,6,143.09,paid
+Germany,Munich,Oscar,Garcia,4,172.1,paid
+France,Lyon,Arthur,Martin,1,154.07,paid
+France,Bordeaux,Alice,Laurent,5,117.31,cancelled
+Italy,Siena,Arthur,Garcia,1,1.65,paid
+Sweden,Stockholm,Gabriel,Laurent,1,22.19,paid
+Belgium,Brussels,Louis,Dubois,3,85.22,paid
+Belgium,Brussels,Alice,Moreau,3,93.72,paid
+France,Bordeaux,Zoe,Moreau,5,230.7,pending
+United Kingdom,London,Arthur,Martin,5,82.03,paid
+France,Paris,Louis,Clark,5,40.46,paid
+Belgium,Brussels,Emma,Anderson,1,123.24,paid
+Portugal,Faro,Mia,Rossi,1,1.74,paid
+Canada,Montreal,Noah,Walker,3,137.02,paid
+Netherlands,Amsterdam,Amelia,Taylor,3,198.36,paid
+Netherlands,Amsterdam,Amelia,Muller,1,60.69,paid
+France,Bordeaux,Chloe,Dubois,6,46.58,paid
+Italy,Rome,Noah,Moreau,3,172.86,paid
+Italy,Milan,Nina,Bernard,3,77.47,paid
+Netherlands,Amsterdam,Nina,Thomas,5,133.61,pending
+Spain,Madrid,Chloe,Costa,5,93.68,paid
+Denmark,Copenhagen,Mia,Clark,1,111.76,pending
+France,Paris,Chloe,Evans,2,51.2,paid
+Spain,Madrid,Lucas,Lefebvre,4,50.32,paid
+United Kingdom,Manchester,Adam,Laurent,2,248.96,pending
+Portugal,Faro,Arthur,Martin,1,0.73,paid
+Switzerland,Zurich,Adam,Brown,1,39.0,paid
+Belgium,Brussels,Olivia,Martin,3,111.54,paid
+France,Lyon,Noah,Clark,5,147.61,paid
+Sweden,Stockholm,Emma,Silva,1,190.63,paid
+Sweden,Stockholm,Lucas,Lopez,4,236.52,paid
+France,Lyon,Gabriel,Moreau,6,16.24,pending
+Spain,Madrid,Hugo,Dubois,6,103.14,paid
+United Kingdom,London,Emma,Muller,6,63.68,paid
+Portugal,Lisbon,Noah,Bernard,1,104.93,refunded
+United States,San Francisco,Adam,Rossi,6,55.35,paid
+France,Paris,Olivia,Costa,2,53.21,paid
+United Kingdom,London,Zoe,Lefebvre,6,95.73,paid
+France,Paris,Emma,Garcia,2,46.43,paid
+Germany,Munich,Olivia,Muller,5,83.56,paid
+Italy,Milan,Emma,Moreau,3,181.54,paid
+United States,New York,Gabriel,Silva,1,145.97,refunded
+Spain,Barcelona,Gabriel,Clark,5,58.74,paid
+Denmark,Copenhagen,Adam,Bernard,2,16.29,pending
+Germany,Munich,Gabriel,Garcia,5,130.38,paid
+Canada,Montreal,Adam,Silva,3,84.27,paid
+Canada,Montreal,Olivia,Dubois,5,126.98,paid
+Portugal,Lisbon,Arthur,Wilson,5,96.61,cancelled
+Japan,Tokyo,Louis,Martin,6,241.8,paid
+Canada,Montreal,Gabriel,Silva,6,34.31,paid
+Italy,Siena,Leo,Martin,1,2.32,paid
+United Kingdom,Manchester,Noah,Rossi,5,109.13,cancelled
+United Kingdom,Manchester,Zoe,Dubois,2,93.63,paid
+Switzerland,Zurich,Elena,Laurent,3,120.96,paid
+Italy,Rome,Noah,Costa,3,220.89,cancelled
+Belgium,Namur,Lucas,Dubois,1,1.99,paid
+Japan,Tokyo,Amelia,Bernard,1,147.94,paid
+Italy,Rome,Noah,Lopez,5,76.72,paid
+Netherlands,Amsterdam,Olivia,Wilson,1,102.25,paid
+Belgium,Namur,Zoe,Brown,4,46.46,cancelled
+Denmark,Copenhagen,Amelia,Brown,1,237.28,paid
+Italy,Milan,Sofia,Lefebvre,5,46.71,paid
+United Kingdom,London,Adam,Muller,5,92.38,cancelled
+Germany,Munich,Chloe,Moreau,2,40.51,refunded
+Canada,Montreal,Chloe,Wilson,3,138.23,pending
+France,Annecy,Liam,Lopez,3,87.74,pending
+United States,San Francisco,Leo,Costa,5,115.61,paid
+France,Marseille,Hugo,Walker,2,125.63,paid
+Japan,Tokyo,Louis,Muller,5,161.88,paid
+Germany,Munich,Louis,Clark,2,198.05,cancelled
+United States,San Francisco,Zoe,Walker,2,242.08,pending
+Italy,Siena,Louis,Garcia,1,2.01,paid
