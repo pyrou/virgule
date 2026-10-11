@@ -12,6 +12,23 @@ import Testing
 @MainActor
 struct virguleTests {
 
+    @Test func gridBackgroundFollowsAppearanceInBothDirections() {
+        let grid = VirtualizedGridView(frame: NSRect(x: 0, y: 0, width: 640, height: 320))
+        var backgrounds: [CGColor] = []
+        for name in [NSAppearance.Name.aqua, .darkAqua, .aqua, .darkAqua] {
+            grid.appearance = NSAppearance(named: name)
+            grid.viewDidChangeEffectiveAppearance()
+            guard let background = grid.layer?.backgroundColor else {
+                Issue.record("Grid background is missing")
+                return
+            }
+            backgrounds.append(background)
+        }
+        #expect(backgrounds[0] != backgrounds[1])
+        #expect(backgrounds[0] == backgrounds[2])
+        #expect(backgrounds[1] == backgrounds[3])
+    }
+
     @Test func tableFooterShowsDisplayedQueryRows() {
         #expect(ContentViewController.tableFooterText(
             displayedRowCount: 150,

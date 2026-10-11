@@ -110,6 +110,14 @@ final class VirtualizedGridView: NSView, NSMenuItemValidation {
         reloadData()
     }
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = FinderGridPalette.background.cgColor
+        }
+        needsDisplay = true
+    }
+
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
@@ -656,6 +664,14 @@ private final class VirtualizedGridRowNumberHeaderView: NSView {
         layer?.borderColor = NSColor.separatorColor.cgColor
     }
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.borderColor = NSColor.separatorColor.cgColor
+        }
+        needsDisplay = true
+    }
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -694,6 +710,15 @@ private final class VirtualizedGridRowNumberView: NSView {
         updateSelectionAppearance()
     }
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.borderColor = NSColor.separatorColor.cgColor
+            updateSelectionAppearance()
+        }
+        needsDisplay = true
+    }
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -730,7 +755,9 @@ private final class VirtualizedGridRowNumberView: NSView {
     }
 
     private func updateSelectionAppearance() {
-        layer?.backgroundColor = (isSelected ? NSColor.selectedContentBackgroundColor : .clear).cgColor
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = (isSelected ? NSColor.selectedContentBackgroundColor : .clear).cgColor
+        }
         label.textColor = isSelected ? .selectedTextColor : .secondaryLabelColor
     }
 }
@@ -842,6 +869,14 @@ private final class VirtualizedGridHeaderCellView: NSView {
         layer?.borderColor = NSColor.separatorColor.cgColor
     }
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.borderColor = NSColor.separatorColor.cgColor
+        }
+        needsDisplay = true
+    }
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -896,6 +931,11 @@ private final class VirtualizedGridRowView: NSView {
     private var recycledCells: [VirtualizedGridCellView] = []
 
     override var isFlipped: Bool { true }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
@@ -999,6 +1039,11 @@ private final class VirtualizedGridCellView: NSView {
 /// header while keeping row rendering and scrolling fully virtualized.
 private final class VirtualizedGridHeaderFadeView: NSView {
     override var isFlipped: Bool { true }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }

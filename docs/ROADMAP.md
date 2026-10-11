@@ -104,6 +104,8 @@ This checklist is the source of truth for scope. Check an item only after it has
 
 ## 8. MVP persistence and quality
 
+- [x] Refresh grid backgrounds, borders, selection, and custom drawing when switching between light and dark appearance (Xcode build and `gridBackgroundFollowsAppearanceInBothDirections`; visual check: open a CSV, select a row, toggle macOS appearance in both directions, then scroll).
+
 - [ ] Save/restore bookmarks: name, SQL, visible columns, sizes, sorting/filters, annotations, and view state.
 - [x] Add explicit export of a view to a new CSV (if retained).
 - [ ] Add a local one-million-row dataset generator.
