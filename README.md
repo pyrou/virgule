@@ -26,14 +26,33 @@ FROM $file
 ORDER BY $row_id
 ```
 
-`$row_id` is the stable source row identifier. You can use SQLite expressions, aggregates, and calculated columns to explore your data. For example, if your CSV contains `category` and `amount` columns:
+`$row_id` is the stable source row identifier. You can use SQLite expressions, aggregates, and calculated columns to explore your data.
+
+For example, take an orders CSV with `country`, `city`, `first_name`, `last_name`, `quantity`, `unit_price`, and `status` columns. Combine columns with `concat_ws`, calculate revenue in a common table expression, then rank markets by paid sales:
 
 ```sql
-SELECT category, SUM(amount) AS total
-FROM $file
-GROUP BY category
-ORDER BY total DESC
+WITH orders AS (
+    SELECT
+        concat_ws(' / ', country, city) AS market,
+        concat_ws(' ', first_name, last_name) AS customer,
+        quantity * unit_price AS revenue
+    FROM $file
+    WHERE status = 'paid'
+)
+SELECT
+    market,
+    COUNT(*) AS order_count,
+    COUNT(DISTINCT customer) AS customer_count,
+    ROUND(SUM(revenue), 2) AS total_revenue,
+    ROUND(AVG(revenue), 2) AS average_order_value
+FROM orders
+GROUP BY market
+HAVING SUM(revenue) >= 1000
+ORDER BY total_revenue DESC
+LIMIT 20
 ```
+
+This returns the top 20 markets with at least 1,000 in paid revenue, including order counts, distinct customer names, and average order value. `concat_ws` joins values with a separator and skips null values. Customer names are illustrative; use a customer ID for reliable distinct-customer counts when one is available.
 
 Press **Command-Return** to execute a query. The editor shows the SQL behind the current view, including sorting and search operations. Only read-only `SELECT`, `WITH`, and `EXPLAIN` queries are accepted; statements that can modify the database are rejected.
 
