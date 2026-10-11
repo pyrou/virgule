@@ -78,6 +78,8 @@ This checklist is the source of truth for scope. Check an item only after it has
 
 ## 6. SQL query bar
 
+- [x] Support `file.csv` as a portable alias for the opened CSV, with completion and syntax highlighting (Xcode build and SQL presentation/completion regression tests).
+
 - [x] Keep the active SQL readily available from the table view.
 - [x] Support multi-line editing and execution with Command-Return.
 - [x] Immediately reflect valid user SQL in the grid.

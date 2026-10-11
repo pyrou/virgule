@@ -190,6 +190,19 @@ struct virguleTests {
         #expect(highlighted.attribute(.foregroundColor, at: rowIDRange.location, effectiveRange: nil) as? NSColor == .tertiaryLabelColor)
     }
 
+    @Test func portableCSVSourceWorksAcrossFilesAndPreservesOtherTokens() {
+        let query = "SELECT * FROM file.csv WHERE name = 'file.csv' -- file.csv"
+        for path in ["/tmp/first.csv", "/tmp/second.csv"] {
+            let presentation = SQLQueryPresentation(sourcePath: path)
+            #expect(presentation.engineSQL(for: query) == "SELECT * FROM csv WHERE name = 'file.csv' -- file.csv")
+            #expect(presentation.engineSQL(for: "SELECT file.csv.name FROM file.csv") == "SELECT file.csv.name FROM csv")
+            #expect(presentation.engineSQL(for: "SELECT * FROM myfile.csv") == "SELECT * FROM myfile.csv")
+            #expect(presentation.engineSQL(for: "SELECT * FROM file.csv FORM") == "SELECT * FROM csv FORM")
+            #expect(presentation.displayedError("Invalid SQL query at line 1, column 19: syntax error", for: "SELECT * FROM file.csv FORM").contains("line 1, column 24"))
+        }
+        #expect(SQLQueryPresentation(sourcePath: "").engineSQL(for: "SELECT * FROM file.csv") == "SELECT * FROM csv")
+    }
+
     @Test func sqlPresentationMapsSQLiteLocationsBackToFriendlyQuery() {
         let path = "/Users/michael/Downloads/myfile.csv"
         let presentation = SQLQueryPresentation(sourcePath: path)
@@ -273,6 +286,7 @@ struct virguleTests {
         )
 
         #expect(suggestions == ["csv"])
+        #expect(SQLQueryBar.completionCandidates(for: "SELECT * FROM f", cursor: 15, columns: []) == ["file.csv"])
     }
 
     @Test func sqlEditorCompletesKeywordsFunctionsAndQuotedColumns() {

@@ -6,6 +6,7 @@ import AppKit
 struct SQLQueryPresentation {
     let sourcePath: String
 
+    static let portableSource = "file.csv"
     static let internalRowID = "$virgule_row_id"
     private static let engineSource = "csv"
     private static let engineRowID = "\"__virgule_row_id\""
@@ -33,7 +34,7 @@ struct SQLQueryPresentation {
     }
 
     private func project(_ displayedSQL: String) -> Projection {
-        let replacements = [(sourcePath, Self.engineSource), (Self.internalRowID, Self.engineRowID)]
+        let replacements = [(sourcePath, Self.engineSource), (Self.portableSource, Self.engineSource), (Self.internalRowID, Self.engineRowID)]
         var engine = ""
         var displayedOffsets = [0]
         var displayedOffset = 0
@@ -66,6 +67,12 @@ struct SQLQueryPresentation {
                 if let replacement = replacements.first(where: { candidate in
                     let token = Array(candidate.0.unicodeScalars)
                     guard !token.isEmpty, index + token.count <= scalars.count else { return false }
+                    if candidate.0 == Self.portableSource {
+                        let identifierCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_.$/"))
+                        if index > 0, identifierCharacters.contains(scalars[index - 1]) { return false }
+                        let end = index + token.count
+                        if end < scalars.count, identifierCharacters.contains(scalars[end]) { return false }
+                    }
                     return Array(scalars[index..<(index + token.count)]) == token
                 }) {
                     append(replacement.1, displayedLength: replacement.0.unicodeScalars.count)
@@ -441,6 +448,7 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         if let sourcePath, !sourcePath.isEmpty {
             apply(NSRegularExpression.escapedPattern(for: sourcePath), .systemTeal)
         }
+        apply(#"(?<![\w.$/])file\.csv(?![\w.$/])"#, .systemTeal)
         // The muted colour separates Virgule's stable ordering key from source
         // columns, which retain the normal identifier/string appearance.
         apply("\\$virgule_row_id\\b", .tertiaryLabelColor)
@@ -470,7 +478,7 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
 
         let candidates: [String]
         if ["FROM", "JOIN", "INTO", "UPDATE"].contains(previous) {
-            candidates = ["csv"]
+            candidates = ["csv", SQLQueryPresentation.portableSource]
         } else if partial.uppercased().hasPrefix("EXPL") {
             candidates = ["EXPLAIN", "EXPLAIN QUERY PLAN"]
         } else {
