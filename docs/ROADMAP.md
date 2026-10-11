@@ -17,6 +17,7 @@ This checklist is the source of truth for scope. Check an item only after it has
 - [x] Create this detailed roadmap.
 - [x] Create the initial documentation commit.
 - [x] Add contributor workflow guidance in `AGENTS.md`.
+- [x] Refresh the README for GitHub publication, document current SQL features, and explain Xcode builds pending prebuilt releases.
 
 ## 1. Compilable workspace
 
