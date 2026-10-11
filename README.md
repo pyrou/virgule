@@ -14,8 +14,6 @@ Virgule is a native macOS CSV explorer powered by Swift, Rust, and SQLite. Brows
 - Sort by one or more columns, search the dataset or a single column with text or regular expressions, and copy selected rows as TSV.
 - Export the current view to a new CSV file.
 
-<img width="1104" height="813" alt="image" src="https://github.com/user-attachments/assets/5f31f833-98aa-4e90-9ab9-c39dccd95791" />
-
 Virgule is under active development. Dedicated filter controls, cell/range selection, row annotations, and saved bookmarks are still planned. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for progress and acceptance criteria.
 
 ## SQL for any CSV
@@ -51,10 +49,12 @@ FROM orders
 GROUP BY market
 HAVING SUM(revenue) >= 1000
 ORDER BY total_revenue DESC
-LIMIT 20
+LIMIT 10
 ```
 
-This returns the top 20 markets with at least 1,000 in paid revenue, including order counts, distinct customer names, and average order value. `concat_ws` joins values with a separator and skips null values. Customer names are illustrative; use a customer ID for reliable distinct-customer counts when one is available.
+<img width="1104" height="813" alt="image" src="https://github.com/user-attachments/assets/5f31f833-98aa-4e90-9ab9-c39dccd95791" />
+
+This returns the top 10 markets with at least 1,000 in paid revenue, including order counts, distinct customer names, and average order value. `concat_ws` joins values with a separator and skips null values. Customer names are illustrative; use a customer ID for reliable distinct-customer counts when one is available.
 
 Press **Command-Return** to execute a query. The editor shows the SQL behind the current view, including sorting and search operations. Only read-only `SELECT`, `WITH`, and `EXPLAIN` queries are accepted; statements that can modify the database are rejected.
 
