@@ -191,16 +191,18 @@ struct virguleTests {
     }
 
     @Test func portableCSVSourceWorksAcrossFilesAndPreservesOtherTokens() {
-        let query = "SELECT * FROM file.csv WHERE name = 'file.csv' -- file.csv"
+        let query = "SELECT * FROM $file WHERE name = '$file' -- $file"
         for path in ["/tmp/first.csv", "/tmp/second.csv"] {
             let presentation = SQLQueryPresentation(sourcePath: path)
-            #expect(presentation.engineSQL(for: query) == "SELECT * FROM csv WHERE name = 'file.csv' -- file.csv")
-            #expect(presentation.engineSQL(for: "SELECT file.csv.name FROM file.csv") == "SELECT file.csv.name FROM csv")
+            #expect(presentation.engineSQL(for: query) == "SELECT * FROM csv WHERE name = '$file' -- $file")
+            #expect(presentation.engineSQL(for: "SELECT $file.name FROM $file") == "SELECT $file.name FROM csv")
+            #expect(presentation.engineSQL(for: "SELECT * FROM $filename") == "SELECT * FROM $filename")
+            #expect(presentation.engineSQL(for: "SELECT * FROM file.csv") == "SELECT * FROM file.csv")
             #expect(presentation.engineSQL(for: "SELECT * FROM myfile.csv") == "SELECT * FROM myfile.csv")
-            #expect(presentation.engineSQL(for: "SELECT * FROM file.csv FORM") == "SELECT * FROM csv FORM")
-            #expect(presentation.displayedError("Invalid SQL query at line 1, column 19: syntax error", for: "SELECT * FROM file.csv FORM").contains("line 1, column 24"))
+            #expect(presentation.engineSQL(for: "SELECT * FROM $file FORM") == "SELECT * FROM csv FORM")
+            #expect(presentation.displayedError("Invalid SQL query at line 1, column 19: syntax error", for: "SELECT * FROM $file FORM").contains("line 1, column 21"))
         }
-        #expect(SQLQueryPresentation(sourcePath: "").engineSQL(for: "SELECT * FROM file.csv") == "SELECT * FROM csv")
+        #expect(SQLQueryPresentation(sourcePath: "").engineSQL(for: "SELECT * FROM $file") == "SELECT * FROM csv")
     }
 
     @Test func sqlPresentationMapsSQLiteLocationsBackToFriendlyQuery() {
@@ -286,7 +288,7 @@ struct virguleTests {
         )
 
         #expect(suggestions == ["csv"])
-        #expect(SQLQueryBar.completionCandidates(for: "SELECT * FROM f", cursor: 15, columns: []) == ["file.csv"])
+        #expect(SQLQueryBar.completionCandidates(for: "SELECT * FROM $f", cursor: 16, columns: []) == ["$file"])
     }
 
     @Test func sqlEditorCompletesKeywordsFunctionsAndQuotedColumns() {

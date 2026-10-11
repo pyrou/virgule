@@ -6,7 +6,7 @@ import AppKit
 struct SQLQueryPresentation {
     let sourcePath: String
 
-    static let portableSource = "file.csv"
+    static let portableSource = "$file"
     static let internalRowID = "$virgule_row_id"
     private static let engineSource = "csv"
     private static let engineRowID = "\"__virgule_row_id\""
@@ -448,7 +448,7 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         if let sourcePath, !sourcePath.isEmpty {
             apply(NSRegularExpression.escapedPattern(for: sourcePath), .systemTeal)
         }
-        apply(#"(?<![\w.$/])file\.csv(?![\w.$/])"#, .systemTeal)
+        apply(#"(?<![\w.$/])\$file(?![\w.$/])"#, .systemTeal)
         // The muted colour separates Virgule's stable ordering key from source
         // columns, which retain the normal identifier/string appearance.
         apply("\\$virgule_row_id\\b", .tertiaryLabelColor)
@@ -467,7 +467,7 @@ final class SQLQueryBar: NSView, NSTextViewDelegate {
         let length = (sql as NSString).length
         let safeCursor = min(max(0, cursor), length)
         let prefix = (sql as NSString).substring(to: safeCursor)
-        let wordCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_"))
+        let wordCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_$"))
         let partial = prefix.components(separatedBy: wordCharacters.inverted).last ?? ""
         let priorWords = prefix
             .dropLast(partial.count)
